@@ -117,6 +117,7 @@ function LeadsPage() {
   const listFollowupsFn = useServerFn(listFollowups);
   const todayStatsFn = useServerFn(todayStats);
   const createLeadFn = useServerFn(createLead);
+  const bulkImportLeadsFn = useServerFn(bulkImportLeads);
   const updateLeadStatusFn = useServerFn(updateLeadStatus);
   const cancelFollowupFn = useServerFn(cancelFollowup);
   const sendFollowupNowFn = useServerFn(sendFollowupNow);
@@ -134,6 +135,10 @@ function LeadsPage() {
   const me = useQuery({ queryKey: ["me"], queryFn: () => getMyRoleFn() });
 
   const [openLead, setOpenLead] = useState(false);
+  const [openImport, setOpenImport] = useState(false);
+  const [importPreview, setImportPreview] = useState<
+    Array<{ name: string; phone: string; product: string | null }> | null
+  >(null);
   const [form, setForm] = useState({ name: "", phone: "", product: "" });
 
   const createMutation = useMutation({
@@ -148,6 +153,50 @@ function LeadsPage() {
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal tambah lead"),
   });
+
+  const bulkImportMutation = useMutation({
+    mutationFn: (rows: Array<{ name: string; phone: string; product: string | null }>) =>
+      bulkImportLeadsFn({ data: { rows } }),
+    onSuccess: (r) => {
+      toast.success(`Berjaya import ${r.inserted} lead — followup dijana automatik`);
+      setImportPreview(null);
+      setOpenImport(false);
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["followups"] });
+      qc.invalidateQueries({ queryKey: ["stats"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Import gagal"),
+  });
+
+  async function handleImportFile(file: File) {
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array" });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
+      const parsed = rows
+        .map((r) => {
+          const name = String(r.Nama ?? r.nama ?? r.Name ?? r.name ?? "").trim();
+          const phone = String(
+            r.Telefon ?? r.telefon ?? r.Phone ?? r.phone ?? r.Nombor ?? r.nombor ?? "",
+          ).trim();
+          const product = String(r.Produk ?? r.produk ?? r.Product ?? r.product ?? "").trim();
+          return { name, phone, product: product || null };
+        })
+        .filter((r) => r.name.length > 0 && r.phone.length >= 6);
+      if (parsed.length === 0) {
+        toast.error("Tiada baris sah. Pastikan lajur Nama & Telefon wujud.");
+        return;
+      }
+      if (parsed.length > 500) {
+        toast.error("Maksimum 500 lead per import.");
+        return;
+      }
+      setImportPreview(parsed);
+    } catch (e) {
+      toast.error("Gagal baca fail: " + (e instanceof Error ? e.message : String(e)));
+    }
+  }
 
   const statusMutation = useMutation({
     mutationFn: (v: { id: string; status: "active" | "replied" | "converted" | "stopped" }) =>
