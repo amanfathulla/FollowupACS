@@ -4,7 +4,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 export type UstazaiCredentials = {
   apiKey: string;
-  sender: string;
+  sender: string; // fallback sender when no per-lead sender assigned
 };
 
 export async function loadCredentials(): Promise<UstazaiCredentials | null> {
