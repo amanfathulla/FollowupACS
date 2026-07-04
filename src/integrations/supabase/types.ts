@@ -154,6 +154,7 @@ export type Database = {
       }
       leads: {
         Row: {
+          assigned_sender_id: string | null
           created_at: string
           created_by: string | null
           followup_sequence_id: string | null
@@ -166,6 +167,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          assigned_sender_id?: string | null
           created_at?: string
           created_by?: string | null
           followup_sequence_id?: string | null
@@ -178,6 +180,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          assigned_sender_id?: string | null
           created_at?: string
           created_by?: string | null
           followup_sequence_id?: string | null
@@ -190,6 +193,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "leads_assigned_sender_id_fkey"
+            columns: ["assigned_sender_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_senders"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "leads_followup_sequence_id_fkey"
             columns: ["followup_sequence_id"]
@@ -241,6 +251,45 @@ export type Database = {
           sender_number?: string | null
           updated_at?: string
           updated_by?: string | null
+        }
+        Relationships: []
+      }
+      whatsapp_senders: {
+        Row: {
+          created_at: string
+          current_lead_count: number
+          daily_limit: number
+          gap_seconds: number
+          id: string
+          is_active: boolean
+          label: string
+          last_sent_at: string | null
+          phone_number: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_lead_count?: number
+          daily_limit?: number
+          gap_seconds?: number
+          id?: string
+          is_active?: boolean
+          label: string
+          last_sent_at?: string | null
+          phone_number: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_lead_count?: number
+          daily_limit?: number
+          gap_seconds?: number
+          id?: string
+          is_active?: boolean
+          label?: string
+          last_sent_at?: string | null
+          phone_number?: string
+          updated_at?: string
         }
         Relationships: []
       }
