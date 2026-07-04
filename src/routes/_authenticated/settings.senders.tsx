@@ -65,7 +65,6 @@ function SendersPage() {
   const addFn = useServerFn(addSender);
   const updateFn = useServerFn(updateSender);
   const deleteFn = useServerFn(deleteSender);
-  const bulkFn = useServerFn(bulkImportSenders);
   const meFn = useServerFn(getMyRole);
 
   const me = useQuery({ queryKey: ["me"], queryFn: () => meFn() });
@@ -75,15 +74,13 @@ function SendersPage() {
   const stats = useQuery({ queryKey: ["senderStats"], queryFn: () => statsFn() });
 
   const [openAdd, setOpenAdd] = useState(false);
-  const [form, setForm] = useState<PreviewRow>({
+  const [form, setForm] = useState({
     label: "",
     phone_number: "",
     gap_seconds: 5,
     daily_limit: 200,
     is_active: true,
   });
-
-  const [preview, setPreview] = useState<PreviewRow[] | null>(null);
 
   const addMutation = useMutation({
     mutationFn: () => addFn({ data: form }),
@@ -107,6 +104,7 @@ function SendersPage() {
     }) => updateFn({ data: v }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["senders"] });
+      qc.invalidateQueries({ queryKey: ["senderStats"] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal kemaskini"),
   });
@@ -119,48 +117,6 @@ function SendersPage() {
       qc.invalidateQueries({ queryKey: ["senderStats"] });
     },
   });
-
-  const bulkMutation = useMutation({
-    mutationFn: (rows: PreviewRow[]) => bulkFn({ data: { rows } }),
-    onSuccess: (r) => {
-      toast.success(`Berjaya import ${r.inserted} nombor`);
-      setPreview(null);
-      qc.invalidateQueries({ queryKey: ["senders"] });
-      qc.invalidateQueries({ queryKey: ["senderStats"] });
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Import gagal"),
-  });
-
-  async function handleFile(file: File) {
-    try {
-      const buf = await file.arrayBuffer();
-      const wb = XLSX.read(buf, { type: "array" });
-      const sheet = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
-      const parsed: PreviewRow[] = rows
-        .map((r) => {
-          const label = String(r.Label ?? r.label ?? "").trim();
-          const phone = String(r.Nombor ?? r.nombor ?? r.Phone ?? r.phone_number ?? "").trim();
-          const gap = Number(r.Gap ?? r.gap ?? r.gap_seconds ?? 5);
-          const limit = Number(r["Had Harian"] ?? r.daily_limit ?? r.limit ?? 200);
-          return {
-            label: label || phone,
-            phone_number: phone,
-            gap_seconds: Number.isFinite(gap) && gap > 0 ? gap : 5,
-            daily_limit: Number.isFinite(limit) && limit > 0 ? limit : 200,
-            is_active: true,
-          };
-        })
-        .filter((r) => r.phone_number.length >= 6);
-      if (parsed.length === 0) {
-        toast.error("Tiada baris sah dalam fail. Pastikan lajur Label, Nombor wujud.");
-        return;
-      }
-      setPreview(parsed);
-    } catch (e) {
-      toast.error("Gagal baca fail: " + (e instanceof Error ? e.message : String(e)));
-    }
-  }
 
   return (
     <div className="space-y-6">
