@@ -165,6 +165,40 @@ export const createLead = createServerFn({ method: "POST" })
     return { id: row.id };
   });
 
+export const bulkImportLeads = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        rows: z
+          .array(
+            z.object({
+              name: z.string().min(1).max(120),
+              phone: z.string().min(6).max(30),
+              product: z.string().max(120).optional().nullable(),
+              notes: z.string().max(2000).optional().nullable(),
+            }),
+          )
+          .min(1)
+          .max(500),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const payload = data.rows.map((r) => ({
+      name: r.name,
+      phone: r.phone,
+      product: r.product ?? null,
+      notes: r.notes ?? null,
+      created_by: context.userId,
+    }));
+    const { error, count } = await context.supabase
+      .from("leads")
+      .insert(payload, { count: "exact" });
+    if (error) throw new Error(error.message);
+    return { ok: true, inserted: count ?? payload.length };
+  });
+
 export const updateLeadStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { id: string; status: "active" | "replied" | "converted" | "stopped" }) =>
