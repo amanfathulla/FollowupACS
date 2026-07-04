@@ -14,16 +14,253 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      followup_sequences: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      followup_steps: {
+        Row: {
+          created_at: string
+          day_offset: number
+          id: string
+          message_template: string
+          sequence_id: string
+          step_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          day_offset: number
+          id?: string
+          message_template: string
+          sequence_id: string
+          step_order: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          day_offset?: number
+          id?: string
+          message_template?: string
+          sequence_id?: string
+          step_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "followup_steps_sequence_id_fkey"
+            columns: ["sequence_id"]
+            isOneToOne: false
+            referencedRelation: "followup_sequences"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lead_followups: {
+        Row: {
+          created_at: string
+          day_offset: number | null
+          error_message: string | null
+          id: string
+          lead_id: string
+          provider_message_id: string | null
+          rendered_message: string | null
+          scheduled_at: string
+          sent_at: string | null
+          sequence_id: string | null
+          status: string
+          step_id: string | null
+          step_order: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          day_offset?: number | null
+          error_message?: string | null
+          id?: string
+          lead_id: string
+          provider_message_id?: string | null
+          rendered_message?: string | null
+          scheduled_at: string
+          sent_at?: string | null
+          sequence_id?: string | null
+          status?: string
+          step_id?: string | null
+          step_order?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          day_offset?: number | null
+          error_message?: string | null
+          id?: string
+          lead_id?: string
+          provider_message_id?: string | null
+          rendered_message?: string | null
+          scheduled_at?: string
+          sent_at?: string | null
+          sequence_id?: string | null
+          status?: string
+          step_id?: string | null
+          step_order?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_followups_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_followups_sequence_id_fkey"
+            columns: ["sequence_id"]
+            isOneToOne: false
+            referencedRelation: "followup_sequences"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_followups_step_id_fkey"
+            columns: ["step_id"]
+            isOneToOne: false
+            referencedRelation: "followup_steps"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      leads: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          followup_sequence_id: string | null
+          followup_status: string
+          id: string
+          name: string
+          notes: string | null
+          phone: string
+          product: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          followup_sequence_id?: string | null
+          followup_status?: string
+          id?: string
+          name: string
+          notes?: string | null
+          phone: string
+          product?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          followup_sequence_id?: string | null
+          followup_status?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string
+          product?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_followup_sequence_id_fkey"
+            columns: ["followup_sequence_id"]
+            isOneToOne: false
+            referencedRelation: "followup_sequences"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      whatsapp_settings: {
+        Row: {
+          api_key_configured: boolean
+          automation_enabled: boolean
+          id: number
+          sender_number: string | null
+          updated_at: string
+        }
+        Insert: {
+          api_key_configured?: boolean
+          automation_enabled?: boolean
+          id?: number
+          sender_number?: string | null
+          updated_at?: string
+        }
+        Update: {
+          api_key_configured?: boolean
+          automation_enabled?: boolean
+          id?: number
+          sender_number?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_staff_or_admin: { Args: { _user_id: string }; Returns: boolean }
+      normalize_my_phone: { Args: { raw: string }; Returns: string }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "staff"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +387,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "staff"],
+    },
   },
 } as const
