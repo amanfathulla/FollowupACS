@@ -74,14 +74,16 @@ export async function sendUstazaiMessage(params: {
   credentials: UstazaiCredentials;
   number: string;
   message: string;
+  senderOverride?: string | null;
 }): Promise<SendResult> {
   try {
+    const senderToUse = params.senderOverride?.trim() || params.credentials.sender;
     const response = await fetch("https://ustazai.my/send-message", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         api_key: params.credentials.apiKey,
-        sender: params.credentials.sender,
+        sender: senderToUse,
         number: params.number,
         message: params.message,
       }),
