@@ -1,4 +1,3 @@
-import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
@@ -46,19 +45,7 @@ import {
 } from "@/lib/senders.functions";
 import { getMyRole } from "@/lib/whatsapp.functions";
 
-export const Route = createFileRoute("/_authenticated/settings/senders")({
-  component: SendersPage,
-});
-
-type PreviewRow = {
-  label: string;
-  phone_number: string;
-  gap_seconds: number;
-  daily_limit: number;
-  is_active: boolean;
-};
-
-function SendersPage() {
+export function SendersPanel() {
   const qc = useQueryClient();
   const listFn = useServerFn(listSenders);
   const statsFn = useServerFn(senderStats);
@@ -122,10 +109,9 @@ function SendersPage() {
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Pengurusan Nombor WhatsApp</h1>
+          <h2 className="text-lg font-semibold tracking-tight">Senarai Nombor Sender</h2>
           <p className="text-sm text-muted-foreground">
-            Agih beban followup pada beberapa nombor device. Setiap lead kekal (sticky) dengan
-            satu nombor sahaja.
+            Agih beban followup pada beberapa nombor device. Setiap lead kekal (sticky) dengan satu nombor.
           </p>
         </div>
         {isAdmin && (
@@ -195,7 +181,6 @@ function SendersPage() {
         )}
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           icon={<Phone className="w-5 h-5" />}
@@ -223,21 +208,17 @@ function SendersPage() {
         />
       </div>
 
-      {/* Info card explaining how "active" works */}
       <Card className="p-4 rounded-2xl bg-info/5 border-info/30">
         <div className="text-sm text-foreground/80">
-          <strong>Bagaimana lead diagihkan:</strong> Setiap lead baru akan dihantar automatik
-          ke nombor sender yang statusnya <Badge variant="outline" className="bg-success/15 text-success border-success/30 mx-1">Aktif</Badge>
-          dengan jumlah lead paling sedikit. Sekali lead dipasangkan dengan satu nombor, ia
-          kekal dengan nombor tersebut untuk semua 10 followup. Nombor yang{" "}
+          <strong>Bagaimana lead diagihkan:</strong> Setiap lead baru akan dihantar automatik ke nombor sender yang statusnya{" "}
+          <Badge variant="outline" className="bg-success/15 text-success border-success/30 mx-1">Aktif</Badge>
+          dengan jumlah lead paling sedikit. Sekali lead dipasangkan dengan satu nombor, ia kekal dengan nombor tersebut untuk semua followup. Nombor{" "}
           <Badge variant="outline" className="bg-muted text-muted-foreground mx-1">Tidak aktif</Badge>{" "}
-          tidak akan diagih lead baru dan tidak akan hantar followup.
+          tidak akan diagih lead baru.
         </div>
       </Card>
 
-      {/* Senders table */}
       <Card className="p-6 rounded-2xl">
-        <div className="mb-4 font-medium">Senarai nombor sender</div>
         <Table>
           <TableHeader>
             <TableRow>
@@ -256,10 +237,7 @@ function SendersPage() {
               <TableRow key={s.id}>
                 <TableCell>
                   {s.is_active ? (
-                    <Badge
-                      variant="outline"
-                      className="bg-success/15 text-success border-success/30 gap-1"
-                    >
+                    <Badge variant="outline" className="bg-success/15 text-success border-success/30 gap-1">
                       <CheckCircle2 className="w-3 h-3" />
                       Aktif — terima lead
                     </Badge>

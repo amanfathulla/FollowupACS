@@ -14,7 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedLeadsRouteImport } from './routes/_authenticated/leads'
 import { Route as AuthenticatedSettingsWhatsappRouteImport } from './routes/_authenticated/settings.whatsapp'
-import { Route as AuthenticatedSettingsSendersRouteImport } from './routes/_authenticated/settings.senders'
+import { Route as AuthenticatedSettingsMessagesRouteImport } from './routes/_authenticated/settings.messages'
 import { Route as ApiPublicHooksSendFollowupsRouteImport } from './routes/api/public/hooks/send-followups'
 
 const AuthRoute = AuthRouteImport.update({
@@ -42,10 +42,10 @@ const AuthenticatedSettingsWhatsappRoute =
     path: '/settings/whatsapp',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedSettingsSendersRoute =
-  AuthenticatedSettingsSendersRouteImport.update({
-    id: '/settings/senders',
-    path: '/settings/senders',
+const AuthenticatedSettingsMessagesRoute =
+  AuthenticatedSettingsMessagesRouteImport.update({
+    id: '/settings/messages',
+    path: '/settings/messages',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const ApiPublicHooksSendFollowupsRoute =
@@ -59,7 +59,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/leads': typeof AuthenticatedLeadsRoute
-  '/settings/senders': typeof AuthenticatedSettingsSendersRoute
+  '/settings/messages': typeof AuthenticatedSettingsMessagesRoute
   '/settings/whatsapp': typeof AuthenticatedSettingsWhatsappRoute
   '/api/public/hooks/send-followups': typeof ApiPublicHooksSendFollowupsRoute
 }
@@ -67,7 +67,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/leads': typeof AuthenticatedLeadsRoute
-  '/settings/senders': typeof AuthenticatedSettingsSendersRoute
+  '/settings/messages': typeof AuthenticatedSettingsMessagesRoute
   '/settings/whatsapp': typeof AuthenticatedSettingsWhatsappRoute
   '/api/public/hooks/send-followups': typeof ApiPublicHooksSendFollowupsRoute
 }
@@ -77,7 +77,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/leads': typeof AuthenticatedLeadsRoute
-  '/_authenticated/settings/senders': typeof AuthenticatedSettingsSendersRoute
+  '/_authenticated/settings/messages': typeof AuthenticatedSettingsMessagesRoute
   '/_authenticated/settings/whatsapp': typeof AuthenticatedSettingsWhatsappRoute
   '/api/public/hooks/send-followups': typeof ApiPublicHooksSendFollowupsRoute
 }
@@ -87,7 +87,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/leads'
-    | '/settings/senders'
+    | '/settings/messages'
     | '/settings/whatsapp'
     | '/api/public/hooks/send-followups'
   fileRoutesByTo: FileRoutesByTo
@@ -95,7 +95,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/leads'
-    | '/settings/senders'
+    | '/settings/messages'
     | '/settings/whatsapp'
     | '/api/public/hooks/send-followups'
   id:
@@ -104,7 +104,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/leads'
-    | '/_authenticated/settings/senders'
+    | '/_authenticated/settings/messages'
     | '/_authenticated/settings/whatsapp'
     | '/api/public/hooks/send-followups'
   fileRoutesById: FileRoutesById
@@ -153,11 +153,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsWhatsappRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/settings/senders': {
-      id: '/_authenticated/settings/senders'
-      path: '/settings/senders'
-      fullPath: '/settings/senders'
-      preLoaderRoute: typeof AuthenticatedSettingsSendersRouteImport
+    '/_authenticated/settings/messages': {
+      id: '/_authenticated/settings/messages'
+      path: '/settings/messages'
+      fullPath: '/settings/messages'
+      preLoaderRoute: typeof AuthenticatedSettingsMessagesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/api/public/hooks/send-followups': {
@@ -172,13 +172,13 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedLeadsRoute: typeof AuthenticatedLeadsRoute
-  AuthenticatedSettingsSendersRoute: typeof AuthenticatedSettingsSendersRoute
+  AuthenticatedSettingsMessagesRoute: typeof AuthenticatedSettingsMessagesRoute
   AuthenticatedSettingsWhatsappRoute: typeof AuthenticatedSettingsWhatsappRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedLeadsRoute: AuthenticatedLeadsRoute,
-  AuthenticatedSettingsSendersRoute: AuthenticatedSettingsSendersRoute,
+  AuthenticatedSettingsMessagesRoute: AuthenticatedSettingsMessagesRoute,
   AuthenticatedSettingsWhatsappRoute: AuthenticatedSettingsWhatsappRoute,
 }
 
