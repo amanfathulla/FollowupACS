@@ -89,6 +89,7 @@ export type Database = {
           provider_message_id: string | null
           rendered_message: string | null
           scheduled_at: string
+          sender_id_used: string | null
           sent_at: string | null
           sequence_id: string | null
           status: string
@@ -105,6 +106,7 @@ export type Database = {
           provider_message_id?: string | null
           rendered_message?: string | null
           scheduled_at: string
+          sender_id_used?: string | null
           sent_at?: string | null
           sequence_id?: string | null
           status?: string
@@ -121,6 +123,7 @@ export type Database = {
           provider_message_id?: string | null
           rendered_message?: string | null
           scheduled_at?: string
+          sender_id_used?: string | null
           sent_at?: string | null
           sequence_id?: string | null
           status?: string
@@ -134,6 +137,13 @@ export type Database = {
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_followups_sender_id_used_fkey"
+            columns: ["sender_id_used"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_senders"
             referencedColumns: ["id"]
           },
           {
@@ -154,6 +164,7 @@ export type Database = {
       }
       leads: {
         Row: {
+          assigned_sender_id: string | null
           created_at: string
           created_by: string | null
           followup_sequence_id: string | null
@@ -166,6 +177,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          assigned_sender_id?: string | null
           created_at?: string
           created_by?: string | null
           followup_sequence_id?: string | null
@@ -178,6 +190,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          assigned_sender_id?: string | null
           created_at?: string
           created_by?: string | null
           followup_sequence_id?: string | null
@@ -190,6 +203,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "leads_assigned_sender_id_fkey"
+            columns: ["assigned_sender_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_senders"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "leads_followup_sequence_id_fkey"
             columns: ["followup_sequence_id"]
@@ -241,6 +261,45 @@ export type Database = {
           sender_number?: string | null
           updated_at?: string
           updated_by?: string | null
+        }
+        Relationships: []
+      }
+      whatsapp_senders: {
+        Row: {
+          created_at: string
+          current_lead_count: number
+          daily_limit: number
+          gap_seconds: number
+          id: string
+          is_active: boolean
+          label: string
+          last_sent_at: string | null
+          phone_number: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_lead_count?: number
+          daily_limit?: number
+          gap_seconds?: number
+          id?: string
+          is_active?: boolean
+          label: string
+          last_sent_at?: string | null
+          phone_number: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_lead_count?: number
+          daily_limit?: number
+          gap_seconds?: number
+          id?: string
+          is_active?: boolean
+          label?: string
+          last_sent_at?: string | null
+          phone_number?: string
+          updated_at?: string
         }
         Relationships: []
       }

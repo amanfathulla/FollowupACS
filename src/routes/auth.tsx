@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { MessageCircle } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
+  ssr: false,
   component: AuthPage,
 });
 
