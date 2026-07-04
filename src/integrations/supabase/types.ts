@@ -89,6 +89,7 @@ export type Database = {
           provider_message_id: string | null
           rendered_message: string | null
           scheduled_at: string
+          sender_id_used: string | null
           sent_at: string | null
           sequence_id: string | null
           status: string
@@ -105,6 +106,7 @@ export type Database = {
           provider_message_id?: string | null
           rendered_message?: string | null
           scheduled_at: string
+          sender_id_used?: string | null
           sent_at?: string | null
           sequence_id?: string | null
           status?: string
@@ -121,6 +123,7 @@ export type Database = {
           provider_message_id?: string | null
           rendered_message?: string | null
           scheduled_at?: string
+          sender_id_used?: string | null
           sent_at?: string | null
           sequence_id?: string | null
           status?: string
@@ -134,6 +137,13 @@ export type Database = {
             columns: ["lead_id"]
             isOneToOne: false
             referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_followups_sender_id_used_fkey"
+            columns: ["sender_id_used"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_senders"
             referencedColumns: ["id"]
           },
           {
