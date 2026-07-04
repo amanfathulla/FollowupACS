@@ -23,13 +23,15 @@ export async function saveCredentials(
   sender: string | null,
   userId: string,
 ): Promise<void> {
-  const patch: Record<string, unknown> = { updated_by: userId, updated_at: new Date().toISOString() };
-  if (apiKey !== null) patch.api_key = apiKey;
-  if (sender !== null) patch.sender_number = sender;
+  const patch = {
+    updated_by: userId,
+    updated_at: new Date().toISOString(),
+    ...(apiKey !== null ? { api_key: apiKey } : {}),
+    ...(sender !== null ? { sender_number: sender } : {}),
+  };
   const { error } = await supabaseAdmin.from("whatsapp_credentials").update(patch).eq("id", 1);
   if (error) throw error;
 
-  // Mirror the boolean to the public settings table.
   const { data: cred } = await supabaseAdmin
     .from("whatsapp_credentials")
     .select("api_key, sender_number")

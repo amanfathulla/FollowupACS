@@ -72,11 +72,11 @@ export const updateStep = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await requireAdmin(context);
-    const patch: Record<string, unknown> = {
+    const patch = {
       message_template: data.message_template,
       updated_at: new Date().toISOString(),
+      ...(data.day_offset !== undefined ? { day_offset: data.day_offset } : {}),
     };
-    if (data.day_offset !== undefined) patch.day_offset = data.day_offset;
     const { error } = await context.supabase.from("followup_steps").update(patch).eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -356,9 +356,13 @@ export const updateSettings = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await requireAdmin(context);
-    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
-    if (data.automation_enabled !== undefined) patch.automation_enabled = data.automation_enabled;
-    if (data.sender_number !== undefined) patch.sender_number = data.sender_number;
+    const patch = {
+      updated_at: new Date().toISOString(),
+      ...(data.automation_enabled !== undefined
+        ? { automation_enabled: data.automation_enabled }
+        : {}),
+      ...(data.sender_number !== undefined ? { sender_number: data.sender_number } : {}),
+    };
     const { error } = await context.supabase.from("whatsapp_settings").update(patch).eq("id", 1);
     if (error) throw new Error(error.message);
     return { ok: true };
