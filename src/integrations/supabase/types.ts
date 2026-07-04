@@ -220,6 +220,30 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_credentials: {
+        Row: {
+          api_key: string | null
+          id: number
+          sender_number: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          api_key?: string | null
+          id?: number
+          sender_number?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          api_key?: string | null
+          id?: number
+          sender_number?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       whatsapp_settings: {
         Row: {
           api_key_configured: boolean
