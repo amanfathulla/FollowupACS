@@ -42,8 +42,7 @@ function AppShell() {
 
         <nav className="flex-1 p-3 space-y-1">
           {NAV.map((item) => {
-            const active =
-              pathname === item.to || (item.to === "/settings/whatsapp" && pathname.startsWith("/settings"));
+            const active = pathname === item.to;
             const Icon = item.icon;
             return (
               <Link
