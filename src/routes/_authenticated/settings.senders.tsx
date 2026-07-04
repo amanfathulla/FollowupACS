@@ -3,15 +3,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
-import * as XLSX from "xlsx";
 import {
   Plus,
   Trash2,
-  Upload,
   Phone,
   Users,
   BarChart3,
   Send,
+  CheckCircle2,
+  PauseCircle,
 } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
@@ -42,7 +42,6 @@ import {
   addSender,
   updateSender,
   deleteSender,
-  bulkImportSenders,
   senderStats,
 } from "@/lib/senders.functions";
 import { getMyRole } from "@/lib/whatsapp.functions";
