@@ -326,6 +326,97 @@ function LeadsPage() {
               </form>
             </DialogContent>
           </Dialog>
+
+          <Dialog
+            open={openImport}
+            onOpenChange={(v) => {
+              setOpenImport(v);
+              if (!v) setImportPreview(null);
+            }}
+          >
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <Upload className="w-4 h-4 mr-2" />
+                Import Pukal
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Import Lead Pukal (Excel / CSV)</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="text-xs text-muted-foreground">
+                  Lajur diperlukan: <code>Nama</code>, <code>Telefon</code>. Opsyenal:{" "}
+                  <code>Produk</code>. Maksimum 500 lead per import. Setiap lead akan
+                  diagihkan automatik ke nombor sender aktif.
+                </div>
+
+                {!importPreview && (
+                  <label className="flex flex-col items-center justify-center border-2 border-dashed border-border rounded-xl p-8 cursor-pointer hover:border-primary/50 transition-colors">
+                    <Upload className="w-8 h-8 text-muted-foreground mb-2" />
+                    <div className="text-sm text-muted-foreground">
+                      Klik untuk pilih fail .xlsx atau .csv
+                    </div>
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls,.csv"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) handleImportFile(f);
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                )}
+
+                {importPreview && (
+                  <div className="space-y-3">
+                    <div className="text-sm font-medium">
+                      Preview ({importPreview.length} lead):
+                    </div>
+                    <div className="border rounded-lg max-h-64 overflow-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted/50 text-muted-foreground text-xs uppercase sticky top-0">
+                          <tr>
+                            <th className="text-left px-3 py-2">Nama</th>
+                            <th className="text-left px-3 py-2">Telefon</th>
+                            <th className="text-left px-3 py-2">Produk</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {importPreview.map((r, i) => (
+                            <tr key={i} className="border-t border-border">
+                              <td className="px-3 py-2">{r.name}</td>
+                              <td className="px-3 py-2 font-mono text-xs">{r.phone}</td>
+                              <td className="px-3 py-2 text-muted-foreground">
+                                {r.product ?? "—"}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <DialogFooter>
+                {importPreview && (
+                  <>
+                    <Button variant="outline" onClick={() => setImportPreview(null)}>
+                      Pilih fail lain
+                    </Button>
+                    <Button
+                      onClick={() => bulkImportMutation.mutate(importPreview)}
+                      disabled={bulkImportMutation.isPending}
+                    >
+                      Import {importPreview.length} lead
+                    </Button>
+                  </>
+                )}
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
