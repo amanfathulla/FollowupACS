@@ -1,6 +1,6 @@
 import { createFileRoute, Link, Outlet, redirect, useNavigate, useRouterState } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
-import { LayoutDashboard, MessageCircle, Settings, LogOut, Users } from "lucide-react";
+import { LayoutDashboard, MessageCircle, Settings, LogOut, Users, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -16,6 +16,7 @@ export const Route = createFileRoute("/_authenticated")({
 const NAV = [
   { to: "/leads", label: "Lead Management", icon: Users },
   { to: "/settings/whatsapp", label: "WhatsApp Automation", icon: Settings },
+  { to: "/settings/senders", label: "Nombor Sender", icon: Phone },
 ] as const;
 
 function AppShell() {
