@@ -3,15 +3,15 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
-import * as XLSX from "xlsx";
 import {
   Plus,
   Trash2,
-  Upload,
   Phone,
   Users,
   BarChart3,
   Send,
+  CheckCircle2,
+  PauseCircle,
 } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
@@ -42,7 +42,6 @@ import {
   addSender,
   updateSender,
   deleteSender,
-  bulkImportSenders,
   senderStats,
 } from "@/lib/senders.functions";
 import { getMyRole } from "@/lib/whatsapp.functions";
@@ -66,7 +65,6 @@ function SendersPage() {
   const addFn = useServerFn(addSender);
   const updateFn = useServerFn(updateSender);
   const deleteFn = useServerFn(deleteSender);
-  const bulkFn = useServerFn(bulkImportSenders);
   const meFn = useServerFn(getMyRole);
 
   const me = useQuery({ queryKey: ["me"], queryFn: () => meFn() });
@@ -76,15 +74,13 @@ function SendersPage() {
   const stats = useQuery({ queryKey: ["senderStats"], queryFn: () => statsFn() });
 
   const [openAdd, setOpenAdd] = useState(false);
-  const [form, setForm] = useState<PreviewRow>({
+  const [form, setForm] = useState({
     label: "",
     phone_number: "",
     gap_seconds: 5,
     daily_limit: 200,
     is_active: true,
   });
-
-  const [preview, setPreview] = useState<PreviewRow[] | null>(null);
 
   const addMutation = useMutation({
     mutationFn: () => addFn({ data: form }),
@@ -108,6 +104,7 @@ function SendersPage() {
     }) => updateFn({ data: v }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["senders"] });
+      qc.invalidateQueries({ queryKey: ["senderStats"] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal kemaskini"),
   });
@@ -120,48 +117,6 @@ function SendersPage() {
       qc.invalidateQueries({ queryKey: ["senderStats"] });
     },
   });
-
-  const bulkMutation = useMutation({
-    mutationFn: (rows: PreviewRow[]) => bulkFn({ data: { rows } }),
-    onSuccess: (r) => {
-      toast.success(`Berjaya import ${r.inserted} nombor`);
-      setPreview(null);
-      qc.invalidateQueries({ queryKey: ["senders"] });
-      qc.invalidateQueries({ queryKey: ["senderStats"] });
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Import gagal"),
-  });
-
-  async function handleFile(file: File) {
-    try {
-      const buf = await file.arrayBuffer();
-      const wb = XLSX.read(buf, { type: "array" });
-      const sheet = wb.Sheets[wb.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
-      const parsed: PreviewRow[] = rows
-        .map((r) => {
-          const label = String(r.Label ?? r.label ?? "").trim();
-          const phone = String(r.Nombor ?? r.nombor ?? r.Phone ?? r.phone_number ?? "").trim();
-          const gap = Number(r.Gap ?? r.gap ?? r.gap_seconds ?? 5);
-          const limit = Number(r["Had Harian"] ?? r.daily_limit ?? r.limit ?? 200);
-          return {
-            label: label || phone,
-            phone_number: phone,
-            gap_seconds: Number.isFinite(gap) && gap > 0 ? gap : 5,
-            daily_limit: Number.isFinite(limit) && limit > 0 ? limit : 200,
-            is_active: true,
-          };
-        })
-        .filter((r) => r.phone_number.length >= 6);
-      if (parsed.length === 0) {
-        toast.error("Tiada baris sah dalam fail. Pastikan lajur Label, Nombor wujud.");
-        return;
-      }
-      setPreview(parsed);
-    } catch (e) {
-      toast.error("Gagal baca fail: " + (e instanceof Error ? e.message : String(e)));
-    }
-  }
 
   return (
     <div className="space-y-6">
@@ -268,12 +223,25 @@ function SendersPage() {
         />
       </div>
 
+      {/* Info card explaining how "active" works */}
+      <Card className="p-4 rounded-2xl bg-info/5 border-info/30">
+        <div className="text-sm text-foreground/80">
+          <strong>Bagaimana lead diagihkan:</strong> Setiap lead baru akan dihantar automatik
+          ke nombor sender yang statusnya <Badge variant="outline" className="bg-success/15 text-success border-success/30 mx-1">Aktif</Badge>
+          dengan jumlah lead paling sedikit. Sekali lead dipasangkan dengan satu nombor, ia
+          kekal dengan nombor tersebut untuk semua 10 followup. Nombor yang{" "}
+          <Badge variant="outline" className="bg-muted text-muted-foreground mx-1">Tidak aktif</Badge>{" "}
+          tidak akan diagih lead baru dan tidak akan hantar followup.
+        </div>
+      </Card>
+
       {/* Senders table */}
       <Card className="p-6 rounded-2xl">
         <div className="mb-4 font-medium">Senarai nombor sender</div>
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-40">Status</TableHead>
               <TableHead>Label</TableHead>
               <TableHead>Nombor</TableHead>
               <TableHead className="text-right">Lead assigned</TableHead>
@@ -286,6 +254,22 @@ function SendersPage() {
           <TableBody>
             {(senders.data ?? []).map((s: any) => (
               <TableRow key={s.id}>
+                <TableCell>
+                  {s.is_active ? (
+                    <Badge
+                      variant="outline"
+                      className="bg-success/15 text-success border-success/30 gap-1"
+                    >
+                      <CheckCircle2 className="w-3 h-3" />
+                      Aktif — terima lead
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="bg-muted text-muted-foreground gap-1">
+                      <PauseCircle className="w-3 h-3" />
+                      Tidak aktif
+                    </Badge>
+                  )}
+                </TableCell>
                 <TableCell className="font-medium">{s.label}</TableCell>
                 <TableCell className="font-mono text-xs">{s.phone_number}</TableCell>
                 <TableCell className="text-right">
@@ -343,7 +327,7 @@ function SendersPage() {
             ))}
             {senders.data && senders.data.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                   Belum ada nombor sender. Tambah satu untuk mula.
                 </TableCell>
               </TableRow>
@@ -351,77 +335,6 @@ function SendersPage() {
           </TableBody>
         </Table>
       </Card>
-
-      {/* Bulk import */}
-      {isAdmin && (
-        <Card className="p-6 rounded-2xl space-y-4">
-          <div>
-            <div className="font-medium">Import Pukal (Excel / CSV)</div>
-            <div className="text-xs text-muted-foreground">
-              Lajur diperlukan: <code>Label</code>, <code>Nombor</code>, <code>Gap</code>,{" "}
-              <code>Had Harian</code>. Format .xlsx atau .csv.
-            </div>
-          </div>
-
-          <label className="flex flex-col items-center justify-center border-2 border-dashed border-border rounded-xl p-8 cursor-pointer hover:border-primary/50 transition-colors">
-            <Upload className="w-8 h-8 text-muted-foreground mb-2" />
-            <div className="text-sm text-muted-foreground">
-              Klik untuk pilih fail atau drag & drop
-            </div>
-            <input
-              type="file"
-              accept=".xlsx,.xls,.csv"
-              className="hidden"
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) handleFile(f);
-                e.target.value = "";
-              }}
-            />
-          </label>
-
-          {preview && (
-            <div className="space-y-3">
-              <div className="text-sm font-medium">
-                Preview ({preview.length} baris) — semak sebelum simpan:
-              </div>
-              <div className="border rounded-lg max-h-64 overflow-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Label</TableHead>
-                      <TableHead>Nombor</TableHead>
-                      <TableHead>Gap</TableHead>
-                      <TableHead>Had</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {preview.map((r, i) => (
-                      <TableRow key={i}>
-                        <TableCell>{r.label}</TableCell>
-                        <TableCell className="font-mono text-xs">{r.phone_number}</TableCell>
-                        <TableCell>{r.gap_seconds}</TableCell>
-                        <TableCell>{r.daily_limit}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  onClick={() => bulkMutation.mutate(preview)}
-                  disabled={bulkMutation.isPending}
-                >
-                  Simpan {preview.length} nombor
-                </Button>
-                <Button variant="outline" onClick={() => setPreview(null)}>
-                  Batal
-                </Button>
-              </div>
-            </div>
-          )}
-        </Card>
-      )}
     </div>
   );
 }

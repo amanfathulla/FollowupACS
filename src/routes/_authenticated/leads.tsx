@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
+import * as XLSX from "xlsx";
 import {
   Users,
   UserPlus,
@@ -14,6 +15,7 @@ import {
   Send,
   XCircle,
   ExternalLink,
+  Upload,
 } from "lucide-react";
 import {
   BarChart,
@@ -55,6 +57,7 @@ import {
   listFollowups,
   todayStats,
   createLead,
+  bulkImportLeads,
   updateLeadStatus,
   cancelFollowup,
   sendFollowupNow,
@@ -114,6 +117,7 @@ function LeadsPage() {
   const listFollowupsFn = useServerFn(listFollowups);
   const todayStatsFn = useServerFn(todayStats);
   const createLeadFn = useServerFn(createLead);
+  const bulkImportLeadsFn = useServerFn(bulkImportLeads);
   const updateLeadStatusFn = useServerFn(updateLeadStatus);
   const cancelFollowupFn = useServerFn(cancelFollowup);
   const sendFollowupNowFn = useServerFn(sendFollowupNow);
@@ -131,6 +135,10 @@ function LeadsPage() {
   const me = useQuery({ queryKey: ["me"], queryFn: () => getMyRoleFn() });
 
   const [openLead, setOpenLead] = useState(false);
+  const [openImport, setOpenImport] = useState(false);
+  const [importPreview, setImportPreview] = useState<
+    Array<{ name: string; phone: string; product: string | null }> | null
+  >(null);
   const [form, setForm] = useState({ name: "", phone: "", product: "" });
 
   const createMutation = useMutation({
@@ -145,6 +153,50 @@ function LeadsPage() {
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal tambah lead"),
   });
+
+  const bulkImportMutation = useMutation({
+    mutationFn: (rows: Array<{ name: string; phone: string; product: string | null }>) =>
+      bulkImportLeadsFn({ data: { rows } }),
+    onSuccess: (r) => {
+      toast.success(`Berjaya import ${r.inserted} lead — followup dijana automatik`);
+      setImportPreview(null);
+      setOpenImport(false);
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["followups"] });
+      qc.invalidateQueries({ queryKey: ["stats"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Import gagal"),
+  });
+
+  async function handleImportFile(file: File) {
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array" });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
+      const parsed = rows
+        .map((r) => {
+          const name = String(r.Nama ?? r.nama ?? r.Name ?? r.name ?? "").trim();
+          const phone = String(
+            r.Telefon ?? r.telefon ?? r.Phone ?? r.phone ?? r.Nombor ?? r.nombor ?? "",
+          ).trim();
+          const product = String(r.Produk ?? r.produk ?? r.Product ?? r.product ?? "").trim();
+          return { name, phone, product: product || null };
+        })
+        .filter((r) => r.name.length > 0 && r.phone.length >= 6);
+      if (parsed.length === 0) {
+        toast.error("Tiada baris sah. Pastikan lajur Nama & Telefon wujud.");
+        return;
+      }
+      if (parsed.length > 500) {
+        toast.error("Maksimum 500 lead per import.");
+        return;
+      }
+      setImportPreview(parsed);
+    } catch (e) {
+      toast.error("Gagal baca fail: " + (e instanceof Error ? e.message : String(e)));
+    }
+  }
 
   const statusMutation = useMutation({
     mutationFn: (v: { id: string; status: "active" | "replied" | "converted" | "stopped" }) =>
@@ -272,6 +324,97 @@ function LeadsPage() {
                   </Button>
                 </DialogFooter>
               </form>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog
+            open={openImport}
+            onOpenChange={(v) => {
+              setOpenImport(v);
+              if (!v) setImportPreview(null);
+            }}
+          >
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <Upload className="w-4 h-4 mr-2" />
+                Import Pukal
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Import Lead Pukal (Excel / CSV)</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="text-xs text-muted-foreground">
+                  Lajur diperlukan: <code>Nama</code>, <code>Telefon</code>. Opsyenal:{" "}
+                  <code>Produk</code>. Maksimum 500 lead per import. Setiap lead akan
+                  diagihkan automatik ke nombor sender aktif.
+                </div>
+
+                {!importPreview && (
+                  <label className="flex flex-col items-center justify-center border-2 border-dashed border-border rounded-xl p-8 cursor-pointer hover:border-primary/50 transition-colors">
+                    <Upload className="w-8 h-8 text-muted-foreground mb-2" />
+                    <div className="text-sm text-muted-foreground">
+                      Klik untuk pilih fail .xlsx atau .csv
+                    </div>
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls,.csv"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) handleImportFile(f);
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
+                )}
+
+                {importPreview && (
+                  <div className="space-y-3">
+                    <div className="text-sm font-medium">
+                      Preview ({importPreview.length} lead):
+                    </div>
+                    <div className="border rounded-lg max-h-64 overflow-auto">
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted/50 text-muted-foreground text-xs uppercase sticky top-0">
+                          <tr>
+                            <th className="text-left px-3 py-2">Nama</th>
+                            <th className="text-left px-3 py-2">Telefon</th>
+                            <th className="text-left px-3 py-2">Produk</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {importPreview.map((r, i) => (
+                            <tr key={i} className="border-t border-border">
+                              <td className="px-3 py-2">{r.name}</td>
+                              <td className="px-3 py-2 font-mono text-xs">{r.phone}</td>
+                              <td className="px-3 py-2 text-muted-foreground">
+                                {r.product ?? "—"}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <DialogFooter>
+                {importPreview && (
+                  <>
+                    <Button variant="outline" onClick={() => setImportPreview(null)}>
+                      Pilih fail lain
+                    </Button>
+                    <Button
+                      onClick={() => bulkImportMutation.mutate(importPreview)}
+                      disabled={bulkImportMutation.isPending}
+                    >
+                      Import {importPreview.length} lead
+                    </Button>
+                  </>
+                )}
+              </DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
