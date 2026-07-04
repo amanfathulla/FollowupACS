@@ -9,38 +9,116 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedLeadsRouteImport } from './routes/_authenticated/leads'
+import { Route as AuthenticatedSettingsWhatsappRouteImport } from './routes/_authenticated/settings.whatsapp'
+import { Route as ApiPublicHooksSendFollowupsRouteImport } from './routes/api/public/hooks/send-followups'
 
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedLeadsRoute = AuthenticatedLeadsRouteImport.update({
+  id: '/leads',
+  path: '/leads',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedSettingsWhatsappRoute =
+  AuthenticatedSettingsWhatsappRouteImport.update({
+    id: '/settings/whatsapp',
+    path: '/settings/whatsapp',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const ApiPublicHooksSendFollowupsRoute =
+  ApiPublicHooksSendFollowupsRouteImport.update({
+    id: '/api/public/hooks/send-followups',
+    path: '/api/public/hooks/send-followups',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/leads': typeof AuthenticatedLeadsRoute
+  '/settings/whatsapp': typeof AuthenticatedSettingsWhatsappRoute
+  '/api/public/hooks/send-followups': typeof ApiPublicHooksSendFollowupsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/leads': typeof AuthenticatedLeadsRoute
+  '/settings/whatsapp': typeof AuthenticatedSettingsWhatsappRoute
+  '/api/public/hooks/send-followups': typeof ApiPublicHooksSendFollowupsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRoute
+  '/_authenticated/leads': typeof AuthenticatedLeadsRoute
+  '/_authenticated/settings/whatsapp': typeof AuthenticatedSettingsWhatsappRoute
+  '/api/public/hooks/send-followups': typeof ApiPublicHooksSendFollowupsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/leads'
+    | '/settings/whatsapp'
+    | '/api/public/hooks/send-followups'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/auth'
+    | '/leads'
+    | '/settings/whatsapp'
+    | '/api/public/hooks/send-followups'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/auth'
+    | '/_authenticated/leads'
+    | '/_authenticated/settings/whatsapp'
+    | '/api/public/hooks/send-followups'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRoute
+  ApiPublicHooksSendFollowupsRoute: typeof ApiPublicHooksSendFollowupsRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,22 +126,49 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/leads': {
+      id: '/_authenticated/leads'
+      path: '/leads'
+      fullPath: '/leads'
+      preLoaderRoute: typeof AuthenticatedLeadsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/settings/whatsapp': {
+      id: '/_authenticated/settings/whatsapp'
+      path: '/settings/whatsapp'
+      fullPath: '/settings/whatsapp'
+      preLoaderRoute: typeof AuthenticatedSettingsWhatsappRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/public/hooks/send-followups': {
+      id: '/api/public/hooks/send-followups'
+      path: '/api/public/hooks/send-followups'
+      fullPath: '/api/public/hooks/send-followups'
+      preLoaderRoute: typeof ApiPublicHooksSendFollowupsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedLeadsRoute: typeof AuthenticatedLeadsRoute
+  AuthenticatedSettingsWhatsappRoute: typeof AuthenticatedSettingsWhatsappRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedLeadsRoute: AuthenticatedLeadsRoute,
+  AuthenticatedSettingsWhatsappRoute: AuthenticatedSettingsWhatsappRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRoute: AuthRoute,
+  ApiPublicHooksSendFollowupsRoute: ApiPublicHooksSendFollowupsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
