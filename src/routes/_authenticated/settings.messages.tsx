@@ -1,9 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Plus, Save, Trash2, MessageCircle } from "lucide-react";
+import { Plus, Save, Trash2, MessageCircle, Upload, ImageIcon, X } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -19,6 +19,14 @@ import {
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
 
 import {
   listSequences,
@@ -32,6 +40,9 @@ import {
 export const Route = createFileRoute("/_authenticated/settings/messages")({
   component: MessagesPage,
 });
+
+const MEDIA_TYPES = ["image", "video", "audio", "document"] as const;
+type MediaType = (typeof MEDIA_TYPES)[number];
 
 function MessagesPage() {
   const qc = useQueryClient();
@@ -56,6 +67,12 @@ function MessagesPage() {
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
   const [draftMessage, setDraftMessage] = useState("");
   const [draftDay, setDraftDay] = useState<number>(0);
+  const [messageMode, setMessageMode] = useState<"text" | "media">("text");
+  const [mediaType, setMediaType] = useState<MediaType>("image");
+  const [mediaPath, setMediaPath] = useState<string | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (!steps.data || steps.data.length === 0) {
@@ -72,8 +89,46 @@ function MessagesPage() {
     if (s) {
       setDraftMessage(s.message_template);
       setDraftDay(s.day_offset);
+      if (s.media_type && s.media_url) {
+        setMessageMode("media");
+        setMediaType(s.media_type as MediaType);
+        setMediaPath(s.media_url);
+        void refreshPreview(s.media_url);
+      } else {
+        setMessageMode("text");
+        setMediaPath(null);
+        setPreviewUrl(null);
+      }
     }
   }, [selectedStepId, steps.data]);
+
+  async function refreshPreview(path: string) {
+    if (!path) return setPreviewUrl(null);
+    const [bucket, ...rest] = path.split("/");
+    const { data } = await supabase.storage.from(bucket).createSignedUrl(rest.join("/"), 60 * 60);
+    setPreviewUrl(data?.signedUrl ?? null);
+  }
+
+  async function handleFileUpload(file: File) {
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop() ?? "bin";
+      const path = `steps/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { error } = await supabase.storage.from("followup-media").upload(path, file, {
+        contentType: file.type,
+        upsert: false,
+      });
+      if (error) throw error;
+      const stored = `followup-media/${path}`;
+      setMediaPath(stored);
+      await refreshPreview(stored);
+      toast.success("Fail dimuat naik");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Muat naik gagal");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   const updateStepMutation = useMutation({
     mutationFn: () =>
@@ -82,6 +137,8 @@ function MessagesPage() {
           id: selectedStepId!,
           message_template: draftMessage,
           day_offset: draftDay,
+          media_type: messageMode === "media" ? mediaType : null,
+          media_url: messageMode === "media" ? mediaPath : null,
         },
       }),
     onSuccess: () => {
@@ -176,7 +233,7 @@ function MessagesPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6">
-        {/* Sidebar list — days */}
+        {/* Sidebar */}
         <Card className="p-3 rounded-2xl h-fit">
           <div className="px-2 py-2 text-xs text-muted-foreground uppercase tracking-wide">
             Senarai hari
@@ -200,16 +257,17 @@ function MessagesPage() {
                   >
                     D{s.day_offset}
                   </Badge>
-                  <span className="truncate text-xs opacity-80">
-                    {s.message_template.slice(0, 32)}
-                    {s.message_template.length > 32 ? "…" : ""}
+                  <span className="truncate text-xs opacity-80 flex-1">
+                    {s.message_template.slice(0, 24)}
+                    {s.message_template.length > 24 ? "…" : ""}
                   </span>
+                  {s.media_type && <ImageIcon className="w-3 h-3 opacity-70" />}
                 </button>
               );
             })}
             {steps.data && steps.data.length === 0 && (
               <div className="text-xs text-muted-foreground text-center py-6">
-                Belum ada langkah. Tambah hari pertama.
+                Belum ada langkah.
               </div>
             )}
           </div>
@@ -249,9 +307,109 @@ function MessagesPage() {
               </div>
 
               <div>
-                <Label>Ayat mesej</Label>
+                <Label>Jenis mesej</Label>
+                <div className="flex gap-2 mt-1">
+                  <Button
+                    type="button"
+                    variant={messageMode === "text" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setMessageMode("text")}
+                    disabled={!isAdmin}
+                  >
+                    Teks sahaja
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={messageMode === "media" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setMessageMode("media")}
+                    disabled={!isAdmin}
+                  >
+                    Teks + Media
+                  </Button>
+                </div>
+              </div>
+
+              {messageMode === "media" && (
+                <div className="border rounded-xl p-4 space-y-3 bg-muted/20">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <Label>Jenis media</Label>
+                      <Select
+                        value={mediaType}
+                        onValueChange={(v) => setMediaType(v as MediaType)}
+                        disabled={!isAdmin}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="image">Gambar</SelectItem>
+                          <SelectItem value="video">Video</SelectItem>
+                          <SelectItem value="audio">Audio</SelectItem>
+                          <SelectItem value="document">Dokumen</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="md:col-span-2">
+                      <Label>Muat naik fail</Label>
+                      <div className="flex gap-2">
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          className="hidden"
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) handleFileUpload(f);
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={!isAdmin || uploading}
+                        >
+                          <Upload className="w-4 h-4 mr-2" />
+                          {uploading ? "Uploading…" : "Pilih fail"}
+                        </Button>
+                        {mediaPath && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setMediaPath(null);
+                              setPreviewUrl(null);
+                            }}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  {previewUrl && (
+                    <div className="rounded-lg overflow-hidden border max-w-sm">
+                      {mediaType === "image" && (
+                        <img src={previewUrl} alt="preview" className="w-full h-auto" />
+                      )}
+                      {mediaType === "video" && (
+                        <video src={previewUrl} controls className="w-full h-auto" />
+                      )}
+                      {(mediaType === "audio" || mediaType === "document") && (
+                        <div className="p-3 text-xs text-muted-foreground truncate">
+                          {mediaPath}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div>
+                <Label>{messageMode === "media" ? "Caption (opsyenal)" : "Ayat mesej"}</Label>
                 <Textarea
-                  rows={10}
+                  rows={8}
                   value={draftMessage}
                   onChange={(e) => setDraftMessage(e.target.value)}
                   disabled={!isAdmin}

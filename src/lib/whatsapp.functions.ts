@@ -52,32 +52,45 @@ export const listSteps = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: rows, error } = await context.supabase
       .from("followup_steps")
-      .select("id, sequence_id, step_order, day_offset, message_template")
+      .select("id, sequence_id, step_order, day_offset, message_template, media_type, media_url")
       .eq("sequence_id", data.sequenceId)
       .order("step_order", { ascending: true });
     if (error) throw new Error(error.message);
     return rows ?? [];
   });
 
+const mediaTypeSchema = z.enum(["image", "video", "audio", "document"]).nullable().optional();
+
 export const updateStep = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { id: string; message_template: string; day_offset?: number }) =>
-    z
-      .object({
-        id: z.string().uuid(),
-        message_template: z.string().min(1).max(4000),
-        day_offset: z.number().int().min(0).max(365).optional(),
-      })
-      .parse(d),
+  .inputValidator(
+    (d: {
+      id: string;
+      message_template: string;
+      day_offset?: number;
+      media_type?: "image" | "video" | "audio" | "document" | null;
+      media_url?: string | null;
+    }) =>
+      z
+        .object({
+          id: z.string().uuid(),
+          message_template: z.string().min(0).max(4000),
+          day_offset: z.number().int().min(0).max(365).optional(),
+          media_type: mediaTypeSchema,
+          media_url: z.string().max(500).nullable().optional(),
+        })
+        .parse(d),
   )
   .handler(async ({ data, context }) => {
     await requireAdmin(context);
-    const patch = {
+    const patch: Record<string, unknown> = {
       message_template: data.message_template,
       updated_at: new Date().toISOString(),
-      ...(data.day_offset !== undefined ? { day_offset: data.day_offset } : {}),
     };
-    const { error } = await context.supabase.from("followup_steps").update(patch).eq("id", data.id);
+    if (data.day_offset !== undefined) patch.day_offset = data.day_offset;
+    if (data.media_type !== undefined) patch.media_type = data.media_type;
+    if (data.media_url !== undefined) patch.media_url = data.media_url;
+    const { error } = await context.supabase.from("followup_steps").update(patch as any).eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -103,14 +116,18 @@ export const addStep = createServerFn({ method: "POST" })
       .limit(1)
       .maybeSingle();
     const nextOrder = (last?.step_order ?? 0) + 1;
-    const { error } = await context.supabase.from("followup_steps").insert({
-      sequence_id: data.sequenceId,
-      step_order: nextOrder,
-      day_offset: data.day_offset,
-      message_template: data.message_template,
-    });
+    const { data: created, error } = await context.supabase
+      .from("followup_steps")
+      .insert({
+        sequence_id: data.sequenceId,
+        step_order: nextOrder,
+        day_offset: data.day_offset,
+        message_template: data.message_template,
+      })
+      .select("id")
+      .single();
     if (error) throw new Error(error.message);
-    return { ok: true };
+    return { id: created.id };
   });
 
 export const deleteStep = createServerFn({ method: "POST" })
@@ -302,35 +319,70 @@ export const sendFollowupNow = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await requireAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { loadCredentials, renderTemplate, sendUstazaiMessage } = await import(
-      "./ustazai.server"
-    );
+    const { loadCredentials, renderTemplate, sendUstazaiMessage, sendUstazaiMedia, signMediaUrl } =
+      await import("./ustazai.server");
 
     const { data: fu, error } = await supabaseAdmin
       .from("lead_followups")
       .select(
-        "id, status, lead_id, day_offset, leads!inner(name, phone, product, followup_status), followup_steps!inner(message_template)",
+        "id, status, lead_id, day_offset, leads!inner(name, phone, product, followup_status, assigned_sender_id), followup_steps!inner(message_template, media_type, media_url)",
       )
       .eq("id", data.id)
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!fu) throw new Error("Followup tidak dijumpai");
-    const lead = fu.leads as { name: string; phone: string; product: string | null; followup_status: string };
-    const step = fu.followup_steps as { message_template: string };
+    const lead = fu.leads as {
+      name: string;
+      phone: string;
+      product: string | null;
+      followup_status: string;
+      assigned_sender_id: string | null;
+    };
+    const step = fu.followup_steps as {
+      message_template: string;
+      media_type: string | null;
+      media_url: string | null;
+    };
     if (lead.followup_status !== "active") throw new Error("Lead bukan status aktif");
 
     const creds = await loadCredentials();
     if (!creds) throw new Error("API ustazai.my belum disetkan");
 
-    const message = renderTemplate(step.message_template, {
+    let senderPhone: string | undefined;
+    if (lead.assigned_sender_id) {
+      const { data: s } = await supabaseAdmin
+        .from("whatsapp_senders")
+        .select("phone_number")
+        .eq("id", lead.assigned_sender_id)
+        .maybeSingle();
+      senderPhone = s?.phone_number as string | undefined;
+    }
+
+    const message = renderTemplate(step.message_template ?? "", {
       nama: lead.name,
       produk: lead.product ?? "",
     });
-    const result = await sendUstazaiMessage({
-      credentials: creds,
-      number: lead.phone,
-      message,
-    });
+
+    let result;
+    if (step.media_type && step.media_url) {
+      const url = await signMediaUrl(step.media_url);
+      if (!url) throw new Error("Gagal generate signed URL untuk media");
+      result = await sendUstazaiMedia({
+        credentials: creds,
+        number: lead.phone,
+        mediaType: step.media_type as "image" | "video" | "audio" | "document",
+        url,
+        caption: message,
+        senderOverride: senderPhone,
+      });
+    } else {
+      result = await sendUstazaiMessage({
+        credentials: creds,
+        number: lead.phone,
+        message,
+        senderOverride: senderPhone,
+      });
+    }
 
     if (result.ok) {
       await supabaseAdmin
@@ -343,6 +395,15 @@ export const sendFollowupNow = createServerFn({ method: "POST" })
           updated_at: new Date().toISOString(),
         })
         .eq("id", fu.id);
+      await supabaseAdmin.from("lead_messages").insert({
+        lead_id: lead && (fu.lead_id as string),
+        sender_id: lead.assigned_sender_id,
+        direction: "outbound",
+        message_type: step.media_type ?? "text",
+        content: message,
+        media_url: step.media_url,
+        provider_message_id: result.messageId,
+      });
       return { ok: true };
     }
     await supabaseAdmin
@@ -390,14 +451,10 @@ export const updateSettings = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await requireAdmin(context);
-    const patch = {
-      updated_at: new Date().toISOString(),
-      ...(data.automation_enabled !== undefined
-        ? { automation_enabled: data.automation_enabled }
-        : {}),
-      ...(data.sender_number !== undefined ? { sender_number: data.sender_number } : {}),
-    };
-    const { error } = await context.supabase.from("whatsapp_settings").update(patch).eq("id", 1);
+    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (data.automation_enabled !== undefined) patch.automation_enabled = data.automation_enabled;
+    if (data.sender_number !== undefined) patch.sender_number = data.sender_number;
+    const { error } = await context.supabase.from("whatsapp_settings").update(patch as any).eq("id", 1);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -443,4 +500,128 @@ export const testConnection = createServerFn({ method: "POST" })
     });
     if (!result.ok) throw new Error(result.error);
     return { ok: true, messageId: result.messageId };
+  });
+
+// ---------- Live Chat ----------
+
+// List conversations (one row per lead who has messages), optionally filtered by sender.
+export const listConversations = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { senderId?: string | null }) =>
+    z.object({ senderId: z.string().uuid().nullable().optional() }).parse(d ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    // Fetch recent messages then aggregate client-side per lead
+    let q = context.supabase
+      .from("lead_messages")
+      .select(
+        "id, lead_id, sender_id, direction, content, message_type, is_read, created_at, leads!inner(name, phone, whatsapp_name, whatsapp_pp_url, followup_status, assigned_sender_id)",
+      )
+      .order("created_at", { ascending: false })
+      .limit(1000);
+    if (data.senderId) q = q.eq("sender_id", data.senderId);
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+    const grouped = new Map<string, any>();
+    for (const r of rows ?? []) {
+      if (!grouped.has(r.lead_id)) {
+        grouped.set(r.lead_id, {
+          lead_id: r.lead_id,
+          lead: r.leads,
+          last_message: r,
+          unread_count: 0,
+        });
+      }
+      const g = grouped.get(r.lead_id)!;
+      if (r.direction === "inbound" && !r.is_read) g.unread_count += 1;
+    }
+    return Array.from(grouped.values());
+  });
+
+export const listLeadMessages = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { leadId: string }) =>
+    z.object({ leadId: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: rows, error } = await context.supabase
+      .from("lead_messages")
+      .select(
+        "id, lead_id, sender_id, direction, content, message_type, media_url, created_at, provider_message_id",
+      )
+      .eq("lead_id", data.leadId)
+      .order("created_at", { ascending: true })
+      .limit(500);
+    if (error) throw new Error(error.message);
+    // Mark inbound as read
+    await context.supabase
+      .from("lead_messages")
+      .update({ is_read: true })
+      .eq("lead_id", data.leadId)
+      .eq("direction", "inbound")
+      .eq("is_read", false);
+    return rows ?? [];
+  });
+
+export const sendManualReply = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { leadId: string; message: string }) =>
+    z
+      .object({
+        leadId: z.string().uuid(),
+        message: z.string().min(1).max(4000),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { loadCredentials, sendUstazaiMessage } = await import("./ustazai.server");
+    const { data: lead } = await supabaseAdmin
+      .from("leads")
+      .select("id, name, phone, assigned_sender_id")
+      .eq("id", data.leadId)
+      .maybeSingle();
+    if (!lead) throw new Error("Lead tidak dijumpai");
+    const creds = await loadCredentials();
+    if (!creds) throw new Error("API ustazai.my belum disetkan");
+    let senderPhone: string | undefined;
+    if (lead.assigned_sender_id) {
+      const { data: s } = await supabaseAdmin
+        .from("whatsapp_senders")
+        .select("phone_number")
+        .eq("id", lead.assigned_sender_id)
+        .maybeSingle();
+      senderPhone = s?.phone_number as string | undefined;
+    }
+    const result = await sendUstazaiMessage({
+      credentials: creds,
+      number: lead.phone as string,
+      message: data.message,
+      senderOverride: senderPhone,
+    });
+    if (!result.ok) throw new Error(result.error);
+    await supabaseAdmin.from("lead_messages").insert({
+      lead_id: lead.id,
+      sender_id: lead.assigned_sender_id,
+      direction: "outbound",
+      message_type: "text",
+      content: data.message,
+      provider_message_id: result.messageId,
+    });
+    // Human takeover: pause chatbot for this lead
+    await supabaseAdmin.from("leads").update({ chatbot_paused: true }).eq("id", lead.id);
+    return { ok: true };
+  });
+
+// ---------- Media upload helpers ----------
+
+// Sign an upload for followup-media via admin client (staff RLS already allows).
+export const listSendersLite = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data } = await context.supabase
+      .from("whatsapp_senders")
+      .select("id, label, phone_number")
+      .order("created_at");
+    return data ?? [];
   });

@@ -14,6 +14,66 @@ export type Database = {
   }
   public: {
     Tables: {
+      chatbot_credentials: {
+        Row: {
+          claude_api_key: string | null
+          gemini_api_key: string | null
+          id: number
+          openai_api_key: string | null
+          updated_at: string
+        }
+        Insert: {
+          claude_api_key?: string | null
+          gemini_api_key?: string | null
+          id?: number
+          openai_api_key?: string | null
+          updated_at?: string
+        }
+        Update: {
+          claude_api_key?: string | null
+          gemini_api_key?: string | null
+          id?: number
+          openai_api_key?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      chatbot_settings: {
+        Row: {
+          ai_provider: string
+          api_key_configured: boolean
+          id: number
+          is_active: boolean
+          model_name: string
+          product_knowledge: string | null
+          tone_instruction: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          ai_provider?: string
+          api_key_configured?: boolean
+          id?: number
+          is_active?: boolean
+          model_name?: string
+          product_knowledge?: string | null
+          tone_instruction?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          ai_provider?: string
+          api_key_configured?: boolean
+          id?: number
+          is_active?: boolean
+          model_name?: string
+          product_knowledge?: string | null
+          tone_instruction?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       followup_sequences: {
         Row: {
           created_at: string
@@ -46,6 +106,8 @@ export type Database = {
           created_at: string
           day_offset: number
           id: string
+          media_type: string | null
+          media_url: string | null
           message_template: string
           sequence_id: string
           step_order: number
@@ -55,6 +117,8 @@ export type Database = {
           created_at?: string
           day_offset: number
           id?: string
+          media_type?: string | null
+          media_url?: string | null
           message_template: string
           sequence_id: string
           step_order: number
@@ -64,6 +128,8 @@ export type Database = {
           created_at?: string
           day_offset?: number
           id?: string
+          media_type?: string | null
+          media_url?: string | null
           message_template?: string
           sequence_id?: string
           step_order?: number
@@ -162,9 +228,64 @@ export type Database = {
           },
         ]
       }
+      lead_messages: {
+        Row: {
+          content: string | null
+          created_at: string
+          direction: string
+          id: string
+          is_read: boolean
+          lead_id: string
+          media_url: string | null
+          message_type: string
+          provider_message_id: string | null
+          sender_id: string | null
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          direction: string
+          id?: string
+          is_read?: boolean
+          lead_id: string
+          media_url?: string | null
+          message_type?: string
+          provider_message_id?: string | null
+          sender_id?: string | null
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          direction?: string
+          id?: string
+          is_read?: boolean
+          lead_id?: string
+          media_url?: string | null
+          message_type?: string
+          provider_message_id?: string | null
+          sender_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lead_messages_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lead_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_senders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           assigned_sender_id: string | null
+          chatbot_paused: boolean
           created_at: string
           created_by: string | null
           followup_sequence_id: string | null
@@ -175,9 +296,12 @@ export type Database = {
           phone: string
           product: string | null
           updated_at: string
+          whatsapp_name: string | null
+          whatsapp_pp_url: string | null
         }
         Insert: {
           assigned_sender_id?: string | null
+          chatbot_paused?: boolean
           created_at?: string
           created_by?: string | null
           followup_sequence_id?: string | null
@@ -188,9 +312,12 @@ export type Database = {
           phone: string
           product?: string | null
           updated_at?: string
+          whatsapp_name?: string | null
+          whatsapp_pp_url?: string | null
         }
         Update: {
           assigned_sender_id?: string | null
+          chatbot_paused?: boolean
           created_at?: string
           created_by?: string | null
           followup_sequence_id?: string | null
@@ -201,6 +328,8 @@ export type Database = {
           phone?: string
           product?: string | null
           updated_at?: string
+          whatsapp_name?: string | null
+          whatsapp_pp_url?: string | null
         }
         Relationships: [
           {
@@ -266,6 +395,8 @@ export type Database = {
       }
       whatsapp_senders: {
         Row: {
+          connection_status: string
+          consecutive_failures: number
           created_at: string
           current_lead_count: number
           daily_limit: number
@@ -273,11 +404,14 @@ export type Database = {
           id: string
           is_active: boolean
           label: string
+          last_checked_at: string | null
           last_sent_at: string | null
           phone_number: string
           updated_at: string
         }
         Insert: {
+          connection_status?: string
+          consecutive_failures?: number
           created_at?: string
           current_lead_count?: number
           daily_limit?: number
@@ -285,11 +419,14 @@ export type Database = {
           id?: string
           is_active?: boolean
           label: string
+          last_checked_at?: string | null
           last_sent_at?: string | null
           phone_number: string
           updated_at?: string
         }
         Update: {
+          connection_status?: string
+          consecutive_failures?: number
           created_at?: string
           current_lead_count?: number
           daily_limit?: number
@@ -297,6 +434,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           label?: string
+          last_checked_at?: string | null
           last_sent_at?: string | null
           phone_number?: string
           updated_at?: string
