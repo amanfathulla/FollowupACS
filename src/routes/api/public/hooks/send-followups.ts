@@ -1,5 +1,6 @@
-// Called by pg_cron every hour. Iterates pending followups and sends via ustazai.my
-// using the per-lead assigned sender (with gap_seconds and daily_limit enforcement).
+// Cron-invoked hourly. Sends pending followups using per-lead sender,
+// respects gap_seconds & daily_limit, supports media via signed URLs,
+// and tracks per-sender health (connection_status + consecutive_failures).
 import { createFileRoute } from "@tanstack/react-router";
 
 const CORS = {
@@ -9,6 +10,8 @@ const CORS = {
 } as const;
 
 const jsonHeaders = { "Content-Type": "application/json", ...CORS };
+
+const HEALTH_THRESHOLD = 5;
 
 export const Route = createFileRoute("/api/public/hooks/send-followups")({
   server: {
@@ -27,9 +30,13 @@ export const Route = createFileRoute("/api/public/hooks/send-followups")({
         }
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { loadCredentials, renderTemplate, sendUstazaiMessage } = await import(
-          "@/lib/ustazai.server"
-        );
+        const {
+          loadCredentials,
+          renderTemplate,
+          sendUstazaiMessage,
+          sendUstazaiMedia,
+          signMediaUrl,
+        } = await import("@/lib/ustazai.server");
 
         const { data: settings } = await supabaseAdmin
           .from("whatsapp_settings")
@@ -53,17 +60,19 @@ export const Route = createFileRoute("/api/public/hooks/send-followups")({
 
         const now = new Date();
         const nowIso = now.toISOString();
-        const startOfDayIso = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+        const startOfDayIso = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate(),
+        ).toISOString();
 
-        // Load all active senders once
         const { data: senders } = await supabaseAdmin
           .from("whatsapp_senders")
-          .select("id, phone_number, is_active, gap_seconds, daily_limit, last_sent_at");
-        const senderMap = new Map(
-          (senders ?? []).map((s) => [s.id as string, s]),
-        );
+          .select(
+            "id, phone_number, is_active, gap_seconds, daily_limit, last_sent_at, connection_status, consecutive_failures",
+          );
+        const senderMap = new Map((senders ?? []).map((s) => [s.id as string, s]));
 
-        // Pre-compute today's sent counts per sender
         const dailyCounts = new Map<string, number>();
         for (const s of senders ?? []) {
           const { count } = await supabaseAdmin
@@ -74,8 +83,8 @@ export const Route = createFileRoute("/api/public/hooks/send-followups")({
             .gte("sent_at", startOfDayIso);
           dailyCounts.set(s.id as string, count ?? 0);
         }
-        // Track last-sent times in-memory to enforce gap across this batch
         const inMemoryLastSent = new Map<string, number>();
+        const senderFailures = new Map<string, number>();
         for (const s of senders ?? []) {
           if (s.last_sent_at) {
             inMemoryLastSent.set(
@@ -83,12 +92,13 @@ export const Route = createFileRoute("/api/public/hooks/send-followups")({
               new Date(s.last_sent_at as string).getTime(),
             );
           }
+          senderFailures.set(s.id as string, (s.consecutive_failures as number) ?? 0);
         }
 
         const { data: due, error } = await supabaseAdmin
           .from("lead_followups")
           .select(
-            "id, lead_id, day_offset, leads!inner(name, phone, product, followup_status, assigned_sender_id), followup_steps!inner(message_template)",
+            "id, lead_id, day_offset, leads!inner(name, phone, product, followup_status, assigned_sender_id), followup_steps!inner(message_template, media_type, media_url)",
           )
           .eq("status", "pending")
           .lte("scheduled_at", nowIso)
@@ -114,7 +124,11 @@ export const Route = createFileRoute("/api/public/hooks/send-followups")({
             followup_status: string;
             assigned_sender_id: string | null;
           };
-          const step = row.followup_steps as { message_template: string };
+          const step = row.followup_steps as {
+            message_template: string;
+            media_type: string | null;
+            media_url: string | null;
+          };
 
           if (lead.followup_status !== "active") {
             await supabaseAdmin
@@ -125,30 +139,24 @@ export const Route = createFileRoute("/api/public/hooks/send-followups")({
             continue;
           }
 
-          // Resolve sender for this lead
           const sender = lead.assigned_sender_id
             ? senderMap.get(lead.assigned_sender_id)
             : undefined;
 
-          // Skip if lead has an inactive sender assigned
-          if (sender && !sender.is_active) {
-            skipped++;
-            continue;
-          }
-
-          // Enforce daily limit
           if (sender) {
+            if (!sender.is_active || sender.connection_status === "disconnected") {
+              skipped++;
+              continue;
+            }
             const usedToday = dailyCounts.get(sender.id as string) ?? 0;
             if (usedToday >= (sender.daily_limit as number)) {
               deferred++;
               continue;
             }
-            // Enforce gap
             const last = inMemoryLastSent.get(sender.id as string) ?? 0;
             const gapMs = (sender.gap_seconds as number) * 1000;
             const waitMs = last + gapMs - Date.now();
             if (waitMs > 0) {
-              // Small waits (<10s) sleep inline; larger defer to next tick
               if (waitMs <= 10_000) {
                 await new Promise((r) => setTimeout(r, waitMs));
               } else {
@@ -158,20 +166,46 @@ export const Route = createFileRoute("/api/public/hooks/send-followups")({
             }
           }
 
-          const message = renderTemplate(step.message_template, {
+          const message = renderTemplate(step.message_template ?? "", {
             nama: lead.name,
             produk: lead.product ?? "",
           });
 
-          const result = await sendUstazaiMessage({
-            credentials: creds,
-            number: lead.phone,
-            message,
-            senderOverride: sender?.phone_number as string | undefined,
-          });
+          let result;
+          if (step.media_type && step.media_url) {
+            const url = await signMediaUrl(step.media_url);
+            if (!url) {
+              await supabaseAdmin
+                .from("lead_followups")
+                .update({
+                  status: "failed",
+                  error_message: "Gagal generate signed URL",
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("id", row.id);
+              failed++;
+              continue;
+            }
+            result = await sendUstazaiMedia({
+              credentials: creds,
+              number: lead.phone,
+              mediaType: step.media_type as "image" | "video" | "audio" | "document",
+              url,
+              caption: message,
+              senderOverride: sender?.phone_number as string | undefined,
+            });
+          } else {
+            result = await sendUstazaiMessage({
+              credentials: creds,
+              number: lead.phone,
+              message,
+              senderOverride: sender?.phone_number as string | undefined,
+            });
+          }
+
+          const senderId = sender?.id as string | undefined;
 
           if (result.ok) {
-            const senderId = sender?.id as string | undefined;
             await supabaseAdmin
               .from("lead_followups")
               .update({
@@ -183,12 +217,27 @@ export const Route = createFileRoute("/api/public/hooks/send-followups")({
                 updated_at: new Date().toISOString(),
               })
               .eq("id", row.id);
+            await supabaseAdmin.from("lead_messages").insert({
+              lead_id: row.lead_id,
+              sender_id: senderId ?? null,
+              direction: "outbound",
+              message_type: step.media_type ?? "text",
+              content: message,
+              media_url: step.media_url,
+              provider_message_id: result.messageId,
+            });
             if (senderId) {
               inMemoryLastSent.set(senderId, Date.now());
               dailyCounts.set(senderId, (dailyCounts.get(senderId) ?? 0) + 1);
+              senderFailures.set(senderId, 0);
               await supabaseAdmin
                 .from("whatsapp_senders")
-                .update({ last_sent_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+                .update({
+                  last_sent_at: new Date().toISOString(),
+                  connection_status: "connected",
+                  consecutive_failures: 0,
+                  updated_at: new Date().toISOString(),
+                })
                 .eq("id", senderId);
             }
             sent++;
@@ -199,14 +248,23 @@ export const Route = createFileRoute("/api/public/hooks/send-followups")({
                 status: "failed",
                 error_message: result.error,
                 rendered_message: message,
-                sender_id_used: (sender?.id as string | undefined) ?? null,
+                sender_id_used: senderId ?? null,
                 updated_at: new Date().toISOString(),
               })
               .eq("id", row.id);
+            if (senderId) {
+              const next = (senderFailures.get(senderId) ?? 0) + 1;
+              senderFailures.set(senderId, next);
+              const patch: Record<string, unknown> = {
+                consecutive_failures: next,
+                updated_at: new Date().toISOString(),
+              };
+              if (next >= HEALTH_THRESHOLD) patch.connection_status = "disconnected";
+              await supabaseAdmin.from("whatsapp_senders").update(patch as any).eq("id", senderId);
+            }
             failed++;
           }
 
-          // Baseline 3s delay to avoid spam detection
           await new Promise((r) => setTimeout(r, 3000));
         }
 
