@@ -167,6 +167,17 @@ export const createLead = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
+    const { data: normRow } = await context.supabase.rpc("normalize_my_phone", { raw: data.phone });
+    const normalized = (normRow as string | null) ?? data.phone;
+    const { data: existing } = await context.supabase
+      .from("leads")
+      .select("id, name")
+      .eq("phone", normalized)
+      .maybeSingle();
+    if (existing) {
+      throw new Error(`Nombor ${normalized} sudah ada dalam sistem (${existing.name}).`);
+    }
+
     const { data: row, error } = await context.supabase
       .from("leads")
       .insert({
@@ -178,7 +189,12 @@ export const createLead = createServerFn({ method: "POST" })
       })
       .select("id")
       .single();
-    if (error) throw new Error(error.message);
+    if (error) {
+      if ((error as any).code === "23505") {
+        throw new Error(`Nombor ${normalized} sudah ada dalam sistem.`);
+      }
+      throw new Error(error.message);
+    }
     return { id: row.id };
   });
 
@@ -202,18 +218,54 @@ export const bulkImportLeads = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
-    const payload = data.rows.map((r) => ({
-      name: r.name,
-      phone: r.phone,
-      product: r.product ?? null,
-      notes: r.notes ?? null,
-      created_by: context.userId,
-    }));
+    const normalized: Array<{ name: string; phone: string; product: string | null; notes: string | null }> = [];
+    const seen = new Set<string>();
+    const dupInPayload: string[] = [];
+    for (const r of data.rows) {
+      const { data: norm } = await context.supabase.rpc("normalize_my_phone", { raw: r.phone });
+      const phone = (norm as string | null) ?? r.phone;
+      if (seen.has(phone)) {
+        dupInPayload.push(phone);
+        continue;
+      }
+      seen.add(phone);
+      normalized.push({
+        name: r.name,
+        phone,
+        product: r.product ?? null,
+        notes: r.notes ?? null,
+      });
+    }
+
+    const phones = normalized.map((r) => r.phone);
+    const { data: existing } = await context.supabase
+      .from("leads")
+      .select("phone")
+      .in("phone", phones);
+    const existingSet = new Set((existing ?? []).map((e: { phone: string }) => e.phone));
+    const toInsert = normalized.filter((r) => !existingSet.has(r.phone));
+    const duplicates = [
+      ...dupInPayload,
+      ...normalized.filter((r) => existingSet.has(r.phone)).map((r) => r.phone),
+    ];
+
+    if (toInsert.length === 0) {
+      throw new Error(
+        `Semua ${duplicates.length} nombor sudah ada dalam sistem. Contoh: ${duplicates.slice(0, 5).join(", ")}`,
+      );
+    }
+
+    const payload = toInsert.map((r) => ({ ...r, created_by: context.userId }));
     const { error, count } = await context.supabase
       .from("leads")
       .insert(payload, { count: "exact" });
     if (error) throw new Error(error.message);
-    return { ok: true, inserted: count ?? payload.length };
+    return {
+      ok: true,
+      inserted: count ?? payload.length,
+      skipped: duplicates.length,
+      duplicates: duplicates.slice(0, 20),
+    };
   });
 
 export const updateLeadStatus = createServerFn({ method: "POST" })
