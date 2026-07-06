@@ -504,7 +504,67 @@ function LeadsPage() {
           <TabsTrigger value="whatsapp">WhatsApp Followup</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="graph">
+        <TabsContent value="graph" className="space-y-4">
+          {/* Per-sender analysis cards */}
+          <div>
+            <div className="text-sm font-medium mb-3">Analisis per Sender — Hari Ini</div>
+            {(senderStats.data ?? []).length === 0 ? (
+              <Card className="p-6 rounded-2xl text-sm text-muted-foreground">
+                Belum ada sender. Tambah nombor sender di Settings › WhatsApp.
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {(senderStats.data ?? []).map((s: any, i: number) => {
+                  const tones = ["stat-1", "stat-2", "stat-3", "stat-4", "stat-5", "stat-6"] as const;
+                  const tone = tones[i % tones.length];
+                  const isConnected = s.connection_status === "connected" && s.is_active;
+                  return (
+                    <Card key={s.id} className={`p-5 rounded-2xl border-0 bg-${tone}`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold truncate">
+                            {s.label ?? s.phone_number}
+                          </div>
+                          <div className="text-xs text-foreground/60 font-mono truncate">
+                            {s.phone_number}
+                          </div>
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className={
+                            isConnected
+                              ? "bg-success/15 text-success border-success/30"
+                              : "bg-muted text-muted-foreground border-border"
+                          }
+                        >
+                          {isConnected ? "connected" : s.connection_status ?? "off"}
+                        </Badge>
+                      </div>
+                      <div className="mt-4 grid grid-cols-2 gap-3">
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wide text-foreground/60">
+                            Perlu send hari ini
+                          </div>
+                          <div className="mt-1 text-2xl font-semibold">{s.pending_today}</div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wide text-foreground/60">
+                            Dah send hari ini
+                          </div>
+                          <div className="mt-1 text-2xl font-semibold">{s.sent_today}</div>
+                        </div>
+                      </div>
+                      <div className="mt-3 pt-3 border-t border-foreground/10 flex justify-between text-xs text-foreground/60">
+                        <span>Had harian: {s.daily_limit}</span>
+                        <span>Jumlah dihantar: {s.sent_total}</span>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           <Card className="p-6 rounded-2xl">
             <div className="mb-4">
               <div className="text-sm font-medium">Lead baru — 14 hari lepas</div>
