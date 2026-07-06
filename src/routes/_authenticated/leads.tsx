@@ -714,42 +714,67 @@ function LeadsPage() {
           </Card>
 
           <Card className="rounded-2xl overflow-hidden">
-            <div className="p-4 border-b border-border">
-              <div className="text-sm font-medium">Jadual Followup Aktif</div>
-              <div className="text-xs text-muted-foreground">
-                Cron akan hantar mesej pending setiap jam kalau automation ON.
+            <div className="p-4 border-b border-border flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <div className="text-sm font-medium">Jadual Followup Aktif</div>
+                <div className="text-xs text-muted-foreground">
+                  Pilih nombor sender untuk lihat followup yang belum dihantar.
+                  Rekod yang sudah sent boleh dilihat di tab <b>Graf</b> (Analisis).
+                </div>
+              </div>
+              <div className="w-full sm:w-72">
+                <Select
+                  value={selectedSenderId ?? ""}
+                  onValueChange={(v) => setSelectedSenderId(v || null)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih nombor sender…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(sendersList.data ?? []).map((s: any) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.label ?? s.phone_number} — {s.phone_number}
+                        {s.connection_status === "connected" ? " ✅" : " ⚠️"}
+                      </SelectItem>
+                    ))}
+                    {(sendersList.data ?? []).length === 0 && (
+                      <div className="px-3 py-2 text-xs text-muted-foreground">
+                        Belum ada sender.
+                      </div>
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/50 text-muted-foreground text-xs uppercase">
-                  <tr>
-                    <th className="text-left px-4 py-3">Lead</th>
-                    <th className="text-left px-4 py-3">Telefon</th>
-                    <th className="text-left px-4 py-3">Hari</th>
-                    <th className="text-left px-4 py-3">Status</th>
-                    <th className="text-left px-4 py-3">Dijadual</th>
-                    <th className="text-right px-4 py-3">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(followups.data ?? []).map((f: any) => (
-                    <tr key={f.id} className="border-t border-border">
-                      <td className="px-4 py-3 font-medium">{f.leads?.name}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{f.leads?.phone}</td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        Hari {f.day_offset ?? "?"}
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge variant="outline" className={FU_STATUS_COLOR[f.status]}>
-                          {f.status}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {format(new Date(f.scheduled_at), "dd MMM yyyy, HH:mm")}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        {f.status === "pending" && (
+
+            {!selectedSenderId ? (
+              <div className="p-10 text-center text-sm text-muted-foreground">
+                Sila pilih nombor sender di atas untuk lihat senarai followup terkini.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 text-muted-foreground text-xs uppercase">
+                    <tr>
+                      <th className="text-left px-4 py-3">Lead</th>
+                      <th className="text-left px-4 py-3">Telefon</th>
+                      <th className="text-left px-4 py-3">Hari</th>
+                      <th className="text-left px-4 py-3">Dijadual</th>
+                      <th className="text-right px-4 py-3">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(pendingForSender.data ?? []).map((f: any) => (
+                      <tr key={f.id} className="border-t border-border">
+                        <td className="px-4 py-3 font-medium">{f.leads?.name}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{f.leads?.phone}</td>
+                        <td className="px-4 py-3 text-muted-foreground">
+                          Hari {f.day_offset ?? "?"}
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">
+                          {format(new Date(f.scheduled_at), "dd MMM yyyy, HH:mm")}
+                        </td>
+                        <td className="px-4 py-3 text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="icon">
@@ -769,20 +794,22 @@ function LeadsPage() {
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                  {followups.data?.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
-                        Belum ada followup dijadualkan.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {selectedSenderId &&
+                      !pendingForSender.isLoading &&
+                      (pendingForSender.data ?? []).length === 0 && (
+                        <tr>
+                          <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                            Tiada followup pending untuk sender ini.
+                          </td>
+                        </tr>
+                      )}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </Card>
         </TabsContent>
       </Tabs>
