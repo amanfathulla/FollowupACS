@@ -167,6 +167,17 @@ export const createLead = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
+    const { data: normRow } = await context.supabase.rpc("normalize_my_phone", { raw: data.phone });
+    const normalized = (normRow as string | null) ?? data.phone;
+    const { data: existing } = await context.supabase
+      .from("leads")
+      .select("id, name")
+      .eq("phone", normalized)
+      .maybeSingle();
+    if (existing) {
+      throw new Error(`Nombor ${normalized} sudah ada dalam sistem (${existing.name}).`);
+    }
+
     const { data: row, error } = await context.supabase
       .from("leads")
       .insert({
@@ -178,7 +189,12 @@ export const createLead = createServerFn({ method: "POST" })
       })
       .select("id")
       .single();
-    if (error) throw new Error(error.message);
+    if (error) {
+      if ((error as any).code === "23505") {
+        throw new Error(`Nombor ${normalized} sudah ada dalam sistem.`);
+      }
+      throw new Error(error.message);
+    }
     return { id: row.id };
   });
 
@@ -202,18 +218,54 @@ export const bulkImportLeads = createServerFn({ method: "POST" })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
-    const payload = data.rows.map((r) => ({
-      name: r.name,
-      phone: r.phone,
-      product: r.product ?? null,
-      notes: r.notes ?? null,
-      created_by: context.userId,
-    }));
+    const normalized: Array<{ name: string; phone: string; product: string | null; notes: string | null }> = [];
+    const seen = new Set<string>();
+    const dupInPayload: string[] = [];
+    for (const r of data.rows) {
+      const { data: norm } = await context.supabase.rpc("normalize_my_phone", { raw: r.phone });
+      const phone = (norm as string | null) ?? r.phone;
+      if (seen.has(phone)) {
+        dupInPayload.push(phone);
+        continue;
+      }
+      seen.add(phone);
+      normalized.push({
+        name: r.name,
+        phone,
+        product: r.product ?? null,
+        notes: r.notes ?? null,
+      });
+    }
+
+    const phones = normalized.map((r) => r.phone);
+    const { data: existing } = await context.supabase
+      .from("leads")
+      .select("phone")
+      .in("phone", phones);
+    const existingSet = new Set((existing ?? []).map((e: { phone: string }) => e.phone));
+    const toInsert = normalized.filter((r) => !existingSet.has(r.phone));
+    const duplicates = [
+      ...dupInPayload,
+      ...normalized.filter((r) => existingSet.has(r.phone)).map((r) => r.phone),
+    ];
+
+    if (toInsert.length === 0) {
+      throw new Error(
+        `Semua ${duplicates.length} nombor sudah ada dalam sistem. Contoh: ${duplicates.slice(0, 5).join(", ")}`,
+      );
+    }
+
+    const payload = toInsert.map((r) => ({ ...r, created_by: context.userId }));
     const { error, count } = await context.supabase
       .from("leads")
       .insert(payload, { count: "exact" });
     if (error) throw new Error(error.message);
-    return { ok: true, inserted: count ?? payload.length };
+    return {
+      ok: true,
+      inserted: count ?? payload.length,
+      skipped: duplicates.length,
+      duplicates: duplicates.slice(0, 20),
+    };
   });
 
 export const updateLeadStatus = createServerFn({ method: "POST" })
@@ -621,7 +673,89 @@ export const listSendersLite = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data } = await context.supabase
       .from("whatsapp_senders")
-      .select("id, label, phone_number")
+      .select("id, label, phone_number, is_active, connection_status")
       .order("created_at");
     return data ?? [];
+  });
+
+// Pending follow-ups for a specific sender, latest (earliest scheduled) per lead only.
+export const listPendingForSender = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { senderId: string }) =>
+    z.object({ senderId: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: rows, error } = await context.supabase
+      .from("lead_followups")
+      .select(
+        "id, lead_id, status, scheduled_at, step_order, day_offset, leads!inner(name, phone, followup_status, assigned_sender_id)",
+      )
+      .eq("status", "pending")
+      .eq("leads.assigned_sender_id", data.senderId)
+      .order("scheduled_at", { ascending: true })
+      .limit(500);
+    if (error) throw new Error(error.message);
+    // Keep only the earliest pending per lead
+    const seen = new Set<string>();
+    const latest: any[] = [];
+    for (const r of rows ?? []) {
+      if (seen.has(r.lead_id)) continue;
+      seen.add(r.lead_id);
+      latest.push(r);
+    }
+    return latest;
+  });
+
+// Per-sender counts for today: pending to send + already sent
+export const senderTodayStats = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = new Date();
+    end.setHours(23, 59, 59, 999);
+    const startIso = start.toISOString();
+    const endIso = end.toISOString();
+
+    const { data: senders } = await context.supabase
+      .from("whatsapp_senders")
+      .select("id, label, phone_number, is_active, connection_status, daily_limit")
+      .order("created_at");
+
+    const results = await Promise.all(
+      (senders ?? []).map(async (s: any) => {
+        // Pending today = pending followups scheduled today for leads assigned to this sender
+        const { data: pendRows } = await context.supabase
+          .from("lead_followups")
+          .select("id, leads!inner(assigned_sender_id)")
+          .eq("status", "pending")
+          .eq("leads.assigned_sender_id", s.id)
+          .gte("scheduled_at", startIso)
+          .lte("scheduled_at", endIso);
+        const { count: sentToday } = await context.supabase
+          .from("lead_followups")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "sent")
+          .eq("sender_id_used", s.id)
+          .gte("sent_at", startIso)
+          .lte("sent_at", endIso);
+        const { count: sentTotal } = await context.supabase
+          .from("lead_followups")
+          .select("id", { count: "exact", head: true })
+          .eq("status", "sent")
+          .eq("sender_id_used", s.id);
+        return {
+          id: s.id,
+          label: s.label,
+          phone_number: s.phone_number,
+          is_active: s.is_active,
+          connection_status: s.connection_status,
+          daily_limit: s.daily_limit,
+          pending_today: pendRows?.length ?? 0,
+          sent_today: sentToday ?? 0,
+          sent_total: sentTotal ?? 0,
+        };
+      }),
+    );
+    return results;
   });

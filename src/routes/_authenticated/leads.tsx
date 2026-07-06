@@ -64,6 +64,9 @@ import {
   getSettings,
   updateSettings,
   getMyRole,
+  listSendersLite,
+  listPendingForSender,
+  senderTodayStats,
 } from "@/lib/whatsapp.functions";
 
 export const Route = createFileRoute("/_authenticated/leads")({
@@ -124,6 +127,9 @@ function LeadsPage() {
   const getSettingsFn = useServerFn(getSettings);
   const updateSettingsFn = useServerFn(updateSettings);
   const getMyRoleFn = useServerFn(getMyRole);
+  const listSendersLiteFn = useServerFn(listSendersLite);
+  const listPendingForSenderFn = useServerFn(listPendingForSender);
+  const senderTodayStatsFn = useServerFn(senderTodayStats);
 
   const stats = useQuery({ queryKey: ["stats"], queryFn: () => todayStatsFn() });
   const leads = useQuery({ queryKey: ["leads"], queryFn: () => listLeadsFn() });
@@ -133,6 +139,15 @@ function LeadsPage() {
   });
   const settings = useQuery({ queryKey: ["settings"], queryFn: () => getSettingsFn() });
   const me = useQuery({ queryKey: ["me"], queryFn: () => getMyRoleFn() });
+  const sendersList = useQuery({ queryKey: ["senders-lite"], queryFn: () => listSendersLiteFn() });
+  const senderStats = useQuery({ queryKey: ["sender-today-stats"], queryFn: () => senderTodayStatsFn() });
+
+  const [selectedSenderId, setSelectedSenderId] = useState<string | null>(null);
+  const pendingForSender = useQuery({
+    queryKey: ["pending-for-sender", selectedSenderId],
+    queryFn: () => listPendingForSenderFn({ data: { senderId: selectedSenderId! } }),
+    enabled: !!selectedSenderId,
+  });
 
   const [openLead, setOpenLead] = useState(false);
   const [openImport, setOpenImport] = useState(false);
@@ -158,12 +173,21 @@ function LeadsPage() {
     mutationFn: (rows: Array<{ name: string; phone: string; product: string | null }>) =>
       bulkImportLeadsFn({ data: { rows } }),
     onSuccess: (r) => {
-      toast.success(`Berjaya import ${r.inserted} lead — followup dijana automatik`);
+      const skippedNote =
+        r.skipped && r.skipped > 0
+          ? ` — ${r.skipped} nombor dilangkau (sudah ada)`
+          : "";
+      toast.success(`Berjaya import ${r.inserted} lead${skippedNote}`);
+      if (r.skipped && r.duplicates && r.duplicates.length > 0) {
+        toast.warning(`Nombor duplikat: ${r.duplicates.join(", ")}`);
+      }
       setImportPreview(null);
       setOpenImport(false);
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["followups"] });
       qc.invalidateQueries({ queryKey: ["stats"] });
+      qc.invalidateQueries({ queryKey: ["pending-for-sender"] });
+      qc.invalidateQueries({ queryKey: ["sender-today-stats"] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Import gagal"),
   });
@@ -213,6 +237,8 @@ function LeadsPage() {
     onSuccess: () => {
       toast.success("Followup dibatalkan");
       qc.invalidateQueries({ queryKey: ["followups"] });
+      qc.invalidateQueries({ queryKey: ["pending-for-sender"] });
+      qc.invalidateQueries({ queryKey: ["sender-today-stats"] });
     },
   });
 
@@ -222,6 +248,8 @@ function LeadsPage() {
       toast.success("Mesej dihantar");
       qc.invalidateQueries({ queryKey: ["followups"] });
       qc.invalidateQueries({ queryKey: ["stats"] });
+      qc.invalidateQueries({ queryKey: ["pending-for-sender"] });
+      qc.invalidateQueries({ queryKey: ["sender-today-stats"] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal hantar"),
   });
@@ -480,7 +508,67 @@ function LeadsPage() {
           <TabsTrigger value="whatsapp">WhatsApp Followup</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="graph">
+        <TabsContent value="graph" className="space-y-4">
+          {/* Per-sender analysis cards */}
+          <div>
+            <div className="text-sm font-medium mb-3">Analisis per Sender — Hari Ini</div>
+            {(senderStats.data ?? []).length === 0 ? (
+              <Card className="p-6 rounded-2xl text-sm text-muted-foreground">
+                Belum ada sender. Tambah nombor sender di Settings › WhatsApp.
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {(senderStats.data ?? []).map((s: any, i: number) => {
+                  const tones = ["stat-1", "stat-2", "stat-3", "stat-4", "stat-5", "stat-6"] as const;
+                  const tone = tones[i % tones.length];
+                  const isConnected = s.connection_status === "connected" && s.is_active;
+                  return (
+                    <Card key={s.id} className={`p-5 rounded-2xl border-0 bg-${tone}`}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold truncate">
+                            {s.label ?? s.phone_number}
+                          </div>
+                          <div className="text-xs text-foreground/60 font-mono truncate">
+                            {s.phone_number}
+                          </div>
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className={
+                            isConnected
+                              ? "bg-success/15 text-success border-success/30"
+                              : "bg-muted text-muted-foreground border-border"
+                          }
+                        >
+                          {isConnected ? "connected" : s.connection_status ?? "off"}
+                        </Badge>
+                      </div>
+                      <div className="mt-4 grid grid-cols-2 gap-3">
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wide text-foreground/60">
+                            Perlu send hari ini
+                          </div>
+                          <div className="mt-1 text-2xl font-semibold">{s.pending_today}</div>
+                        </div>
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wide text-foreground/60">
+                            Dah send hari ini
+                          </div>
+                          <div className="mt-1 text-2xl font-semibold">{s.sent_today}</div>
+                        </div>
+                      </div>
+                      <div className="mt-3 pt-3 border-t border-foreground/10 flex justify-between text-xs text-foreground/60">
+                        <span>Had harian: {s.daily_limit}</span>
+                        <span>Jumlah dihantar: {s.sent_total}</span>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           <Card className="p-6 rounded-2xl">
             <div className="mb-4">
               <div className="text-sm font-medium">Lead baru — 14 hari lepas</div>
@@ -630,42 +718,67 @@ function LeadsPage() {
           </Card>
 
           <Card className="rounded-2xl overflow-hidden">
-            <div className="p-4 border-b border-border">
-              <div className="text-sm font-medium">Jadual Followup Aktif</div>
-              <div className="text-xs text-muted-foreground">
-                Cron akan hantar mesej pending setiap jam kalau automation ON.
+            <div className="p-4 border-b border-border flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <div className="text-sm font-medium">Jadual Followup Aktif</div>
+                <div className="text-xs text-muted-foreground">
+                  Pilih nombor sender untuk lihat followup yang belum dihantar.
+                  Rekod yang sudah sent boleh dilihat di tab <b>Graf</b> (Analisis).
+                </div>
+              </div>
+              <div className="w-full sm:w-72">
+                <Select
+                  value={selectedSenderId ?? ""}
+                  onValueChange={(v) => setSelectedSenderId(v || null)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Pilih nombor sender…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(sendersList.data ?? []).map((s: any) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.label ?? s.phone_number} — {s.phone_number}
+                        {s.connection_status === "connected" ? " ✅" : " ⚠️"}
+                      </SelectItem>
+                    ))}
+                    {(sendersList.data ?? []).length === 0 && (
+                      <div className="px-3 py-2 text-xs text-muted-foreground">
+                        Belum ada sender.
+                      </div>
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/50 text-muted-foreground text-xs uppercase">
-                  <tr>
-                    <th className="text-left px-4 py-3">Lead</th>
-                    <th className="text-left px-4 py-3">Telefon</th>
-                    <th className="text-left px-4 py-3">Hari</th>
-                    <th className="text-left px-4 py-3">Status</th>
-                    <th className="text-left px-4 py-3">Dijadual</th>
-                    <th className="text-right px-4 py-3">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(followups.data ?? []).map((f: any) => (
-                    <tr key={f.id} className="border-t border-border">
-                      <td className="px-4 py-3 font-medium">{f.leads?.name}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{f.leads?.phone}</td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        Hari {f.day_offset ?? "?"}
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge variant="outline" className={FU_STATUS_COLOR[f.status]}>
-                          {f.status}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {format(new Date(f.scheduled_at), "dd MMM yyyy, HH:mm")}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        {f.status === "pending" && (
+
+            {!selectedSenderId ? (
+              <div className="p-10 text-center text-sm text-muted-foreground">
+                Sila pilih nombor sender di atas untuk lihat senarai followup terkini.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 text-muted-foreground text-xs uppercase">
+                    <tr>
+                      <th className="text-left px-4 py-3">Lead</th>
+                      <th className="text-left px-4 py-3">Telefon</th>
+                      <th className="text-left px-4 py-3">Hari</th>
+                      <th className="text-left px-4 py-3">Dijadual</th>
+                      <th className="text-right px-4 py-3">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(pendingForSender.data ?? []).map((f: any) => (
+                      <tr key={f.id} className="border-t border-border">
+                        <td className="px-4 py-3 font-medium">{f.leads?.name}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{f.leads?.phone}</td>
+                        <td className="px-4 py-3 text-muted-foreground">
+                          Hari {f.day_offset ?? "?"}
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">
+                          {format(new Date(f.scheduled_at), "dd MMM yyyy, HH:mm")}
+                        </td>
+                        <td className="px-4 py-3 text-right">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="icon">
@@ -685,20 +798,22 @@ function LeadsPage() {
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                  {followups.data?.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
-                        Belum ada followup dijadualkan.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                        </td>
+                      </tr>
+                    ))}
+                    {selectedSenderId &&
+                      !pendingForSender.isLoading &&
+                      (pendingForSender.data ?? []).length === 0 && (
+                        <tr>
+                          <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                            Tiada followup pending untuk sender ini.
+                          </td>
+                        </tr>
+                      )}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </Card>
         </TabsContent>
       </Tabs>
