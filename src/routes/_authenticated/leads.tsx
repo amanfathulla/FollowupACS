@@ -173,12 +173,21 @@ function LeadsPage() {
     mutationFn: (rows: Array<{ name: string; phone: string; product: string | null }>) =>
       bulkImportLeadsFn({ data: { rows } }),
     onSuccess: (r) => {
-      toast.success(`Berjaya import ${r.inserted} lead — followup dijana automatik`);
+      const skippedNote =
+        r.skipped && r.skipped > 0
+          ? ` — ${r.skipped} nombor dilangkau (sudah ada)`
+          : "";
+      toast.success(`Berjaya import ${r.inserted} lead${skippedNote}`);
+      if (r.skipped && r.duplicates && r.duplicates.length > 0) {
+        toast.warning(`Nombor duplikat: ${r.duplicates.join(", ")}`);
+      }
       setImportPreview(null);
       setOpenImport(false);
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["followups"] });
       qc.invalidateQueries({ queryKey: ["stats"] });
+      qc.invalidateQueries({ queryKey: ["pending-for-sender"] });
+      qc.invalidateQueries({ queryKey: ["sender-today-stats"] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Import gagal"),
   });
