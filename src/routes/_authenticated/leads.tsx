@@ -127,6 +127,9 @@ function LeadsPage() {
   const getSettingsFn = useServerFn(getSettings);
   const updateSettingsFn = useServerFn(updateSettings);
   const getMyRoleFn = useServerFn(getMyRole);
+  const listSendersLiteFn = useServerFn(listSendersLite);
+  const listPendingForSenderFn = useServerFn(listPendingForSender);
+  const senderTodayStatsFn = useServerFn(senderTodayStats);
 
   const stats = useQuery({ queryKey: ["stats"], queryFn: () => todayStatsFn() });
   const leads = useQuery({ queryKey: ["leads"], queryFn: () => listLeadsFn() });
@@ -136,6 +139,15 @@ function LeadsPage() {
   });
   const settings = useQuery({ queryKey: ["settings"], queryFn: () => getSettingsFn() });
   const me = useQuery({ queryKey: ["me"], queryFn: () => getMyRoleFn() });
+  const sendersList = useQuery({ queryKey: ["senders-lite"], queryFn: () => listSendersLiteFn() });
+  const senderStats = useQuery({ queryKey: ["sender-today-stats"], queryFn: () => senderTodayStatsFn() });
+
+  const [selectedSenderId, setSelectedSenderId] = useState<string | null>(null);
+  const pendingForSender = useQuery({
+    queryKey: ["pending-for-sender", selectedSenderId],
+    queryFn: () => listPendingForSenderFn({ data: { senderId: selectedSenderId! } }),
+    enabled: !!selectedSenderId,
+  });
 
   const [openLead, setOpenLead] = useState(false);
   const [openImport, setOpenImport] = useState(false);
