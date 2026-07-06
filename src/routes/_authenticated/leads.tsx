@@ -237,6 +237,8 @@ function LeadsPage() {
     onSuccess: () => {
       toast.success("Followup dibatalkan");
       qc.invalidateQueries({ queryKey: ["followups"] });
+      qc.invalidateQueries({ queryKey: ["pending-for-sender"] });
+      qc.invalidateQueries({ queryKey: ["sender-today-stats"] });
     },
   });
 
@@ -246,6 +248,8 @@ function LeadsPage() {
       toast.success("Mesej dihantar");
       qc.invalidateQueries({ queryKey: ["followups"] });
       qc.invalidateQueries({ queryKey: ["stats"] });
+      qc.invalidateQueries({ queryKey: ["pending-for-sender"] });
+      qc.invalidateQueries({ queryKey: ["sender-today-stats"] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal hantar"),
   });
