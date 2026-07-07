@@ -16,6 +16,11 @@ import {
   XCircle,
   ExternalLink,
   Upload,
+  Pencil,
+  Trash2,
+  ArrowLeft,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
 import {
   BarChart,
@@ -59,12 +64,16 @@ import {
   createLead,
   bulkImportLeads,
   updateLeadStatus,
+  updateLead,
+  deleteLead,
   cancelFollowup,
   sendFollowupNow,
   getSettings,
   updateSettings,
   getMyRole,
+  getFollowupBoard,
 } from "@/lib/whatsapp.functions";
+import { listSenders } from "@/lib/senders.functions";
 
 export const Route = createFileRoute("/_authenticated/leads")({
   component: LeadsPage,
@@ -119,6 +128,8 @@ function LeadsPage() {
   const createLeadFn = useServerFn(createLead);
   const bulkImportLeadsFn = useServerFn(bulkImportLeads);
   const updateLeadStatusFn = useServerFn(updateLeadStatus);
+  const updateLeadFn = useServerFn(updateLead);
+  const deleteLeadFn = useServerFn(deleteLead);
   const cancelFollowupFn = useServerFn(cancelFollowup);
   const sendFollowupNowFn = useServerFn(sendFollowupNow);
   const getSettingsFn = useServerFn(getSettings);
@@ -140,6 +151,8 @@ function LeadsPage() {
     Array<{ name: string; phone: string; product: string | null }> | null
   >(null);
   const [form, setForm] = useState({ name: "", phone: "", product: "" });
+  const [editing, setEditing] = useState<{ id: string; name: string; phone: string; product: string } | null>(null);
+  const [selectedSenderId, setSelectedSenderId] = useState<string | null>(null);
 
   const createMutation = useMutation({
     mutationFn: (payload: typeof form) => createLeadFn({ data: payload }),
@@ -206,6 +219,30 @@ function LeadsPage() {
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["followups"] });
     },
+  });
+
+  const editLeadMutation = useMutation({
+    mutationFn: (v: { id: string; name: string; phone: string; product: string }) =>
+      updateLeadFn({ data: { id: v.id, name: v.name, phone: v.phone, product: v.product || null } }),
+    onSuccess: () => {
+      toast.success("Lead dikemaskini");
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["followup-board"] });
+      setEditing(null);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal kemaskini lead"),
+  });
+
+  const deleteLeadMutation = useMutation({
+    mutationFn: (id: string) => deleteLeadFn({ data: { id } }),
+    onSuccess: () => {
+      toast.success("Lead dipadam");
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["followups"] });
+      qc.invalidateQueries({ queryKey: ["followup-board"] });
+      qc.invalidateQueries({ queryKey: ["stats"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal padam lead"),
   });
 
   const cancelMutation = useMutation({
@@ -562,6 +599,31 @@ function LeadsPage() {
                           >
                             Aktifkan semula
                           </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              setEditing({
+                                id: l.id,
+                                name: l.name ?? "",
+                                phone: l.phone ?? "",
+                                product: l.product ?? "",
+                              })
+                            }
+                          >
+                            <Pencil className="w-4 h-4 mr-2" />
+                            Edit lead
+                          </DropdownMenuItem>
+                          {isAdmin && (
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => {
+                                if (confirm(`Padam lead "${l.name}"? Semua followup akan dipadam.`))
+                                  deleteLeadMutation.mutate(l.id);
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Padam lead
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </td>
@@ -629,79 +691,424 @@ function LeadsPage() {
             </div>
           </Card>
 
-          <Card className="rounded-2xl overflow-hidden">
-            <div className="p-4 border-b border-border">
-              <div className="text-sm font-medium">Jadual Followup Aktif</div>
-              <div className="text-xs text-muted-foreground">
-                Cron akan hantar mesej pending setiap jam kalau automation ON.
-              </div>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-muted/50 text-muted-foreground text-xs uppercase">
-                  <tr>
-                    <th className="text-left px-4 py-3">Lead</th>
-                    <th className="text-left px-4 py-3">Telefon</th>
-                    <th className="text-left px-4 py-3">Hari</th>
-                    <th className="text-left px-4 py-3">Status</th>
-                    <th className="text-left px-4 py-3">Dijadual</th>
-                    <th className="text-right px-4 py-3">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(followups.data ?? []).map((f: any) => (
-                    <tr key={f.id} className="border-t border-border">
-                      <td className="px-4 py-3 font-medium">{f.leads?.name}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{f.leads?.phone}</td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        Hari {f.day_offset ?? "?"}
-                      </td>
-                      <td className="px-4 py-3">
-                        <Badge variant="outline" className={FU_STATUS_COLOR[f.status]}>
-                          {f.status}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {format(new Date(f.scheduled_at), "dd MMM yyyy, HH:mm")}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        {f.status === "pending" && (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <MoreHorizontal className="w-4 h-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              {isAdmin && (
-                                <DropdownMenuItem onClick={() => sendNowMutation.mutate(f.id)}>
-                                  <Send className="w-4 h-4 mr-2" />
-                                  Hantar sekarang
-                                </DropdownMenuItem>
-                              )}
-                              <DropdownMenuItem onClick={() => cancelMutation.mutate(f.id)}>
-                                <XCircle className="w-4 h-4 mr-2" />
-                                Cancel followup
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                  {followups.data?.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
-                        Belum ada followup dijadualkan.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </Card>
+          <FollowupBoard
+            selectedSenderId={selectedSenderId}
+            onSelectSender={setSelectedSenderId}
+            onBack={() => setSelectedSenderId(null)}
+            isAdmin={isAdmin}
+            onCancelFollowup={(id) => cancelMutation.mutate(id)}
+            onSendNow={(id) => sendNowMutation.mutate(id)}
+          />
         </TabsContent>
       </Tabs>
+
+      {/* Edit lead dialog */}
+      <Dialog open={!!editing} onOpenChange={(v) => !v && setEditing(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit lead</DialogTitle>
+          </DialogHeader>
+          {editing && (
+            <form
+              className="space-y-3"
+              onSubmit={(e) => {
+                e.preventDefault();
+                editLeadMutation.mutate(editing);
+              }}
+            >
+              <div>
+                <Label htmlFor="e-name">Nama</Label>
+                <Input
+                  id="e-name"
+                  value={editing.name}
+                  onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="e-phone">Telefon</Label>
+                <Input
+                  id="e-phone"
+                  value={editing.phone}
+                  onChange={(e) => setEditing({ ...editing, phone: e.target.value })}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="e-product">Produk</Label>
+                <Input
+                  id="e-product"
+                  value={editing.product}
+                  onChange={(e) => setEditing({ ...editing, product: e.target.value })}
+                />
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setEditing(null)}>
+                  Batal
+                </Button>
+                <Button type="submit" disabled={editLeadMutation.isPending}>
+                  Simpan perubahan
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
+  );
+}
+
+// ---------- Followup Board (per-sender) ----------
+
+function FollowupBoard(props: {
+  selectedSenderId: string | null;
+  onSelectSender: (id: string) => void;
+  onBack: () => void;
+  isAdmin: boolean;
+  onCancelFollowup: (id: string) => void;
+  onSendNow: (id: string) => void;
+}) {
+  const listSendersFn = useServerFn(listSenders);
+  const getBoardFn = useServerFn(getFollowupBoard);
+
+  const senders = useQuery({
+    queryKey: ["senders", "for-followup"],
+    queryFn: () => listSendersFn(),
+  });
+
+  const board = useQuery({
+    queryKey: ["followup-board", props.selectedSenderId],
+    queryFn: () => getBoardFn({ data: { senderId: props.selectedSenderId! } }),
+    enabled: !!props.selectedSenderId,
+    refetchInterval: 30_000,
+  });
+
+  const [expandedLeadId, setExpandedLeadId] = useState<string | null>(null);
+
+  if (!props.selectedSenderId) {
+    const rows = senders.data ?? [];
+    if (senders.isLoading) {
+      return (
+        <Card className="p-8 rounded-2xl text-center text-sm text-muted-foreground">
+          Memuatkan sender…
+        </Card>
+      );
+    }
+    if (rows.length === 0) {
+      return (
+        <Card className="p-8 rounded-2xl text-center text-sm text-muted-foreground">
+          Belum ada sender. Tambah di{" "}
+          <Link to="/settings/whatsapp" className="text-primary underline">
+            WhatsApp Automation
+          </Link>
+          .
+        </Card>
+      );
+    }
+    return (
+      <div className="space-y-3">
+        <div className="text-sm font-medium">Pilih nombor sender untuk lihat jadual followup</div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          {rows.map((s: any) => {
+            const initials = (s.label ?? "S")
+              .split(/\s+/)
+              .map((p: string) => p[0])
+              .join("")
+              .slice(0, 2)
+              .toUpperCase();
+            const connected = s.connection_status === "connected";
+            return (
+              <button
+                key={s.id}
+                onClick={() => props.onSelectSender(s.id)}
+                className="text-left rounded-2xl border border-border bg-card p-4 hover:border-primary/60 hover:shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-primary/40"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-semibold text-sm">
+                    {initials}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-medium truncate">{s.label}</div>
+                    <div className="text-xs text-muted-foreground font-mono truncate">
+                      {s.phone_number}
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-3 flex items-center justify-between text-xs">
+                  <Badge
+                    variant="outline"
+                    className={
+                      connected
+                        ? "bg-success/15 text-success border-success/30"
+                        : "bg-muted text-muted-foreground border-border"
+                    }
+                  >
+                    {connected ? (
+                      <>
+                        <Wifi className="w-3 h-3 mr-1" /> Connected
+                      </>
+                    ) : (
+                      <>
+                        <WifiOff className="w-3 h-3 mr-1" /> Offline
+                      </>
+                    )}
+                  </Badge>
+                  <span className="text-muted-foreground">
+                    {s.current_lead_count ?? 0} lead
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  const data = board.data;
+  const sender = data?.sender;
+  const leadsRows = data?.leads ?? [];
+
+  // Compute set of day_offsets across all leads
+  const allDays = Array.from(
+    new Set(
+      leadsRows.flatMap((l: any) =>
+        (l.lead_followups ?? []).map((f: any) => Number(f.day_offset)),
+      ),
+    ),
+  ).sort((a, b) => a - b);
+
+  const initials = (sender?.label ?? "S")
+    .split(/\s+/)
+    .map((p: string) => p[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  return (
+    <div className="space-y-4">
+      {/* Summary */}
+      <Card className="p-4 rounded-2xl flex items-center gap-4 flex-wrap">
+        <Button variant="ghost" size="sm" onClick={props.onBack}>
+          <ArrowLeft className="w-4 h-4 mr-1" />
+          Tukar sender
+        </Button>
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className="w-11 h-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-semibold text-sm shrink-0">
+            {initials}
+          </div>
+          <div className="min-w-0">
+            <div className="font-medium truncate">{sender?.label ?? "—"}</div>
+            <div className="text-xs text-muted-foreground font-mono truncate">
+              {sender?.phone_number}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-6 flex-wrap">
+          <Metric label="Terhantar hari ini" value={data?.summary.sentToday ?? 0} tone="success" />
+          <Metric label="Pending" value={data?.summary.pending ?? 0} tone="warning" />
+          <Metric label="Lead aktif" value={data?.summary.activeLeads ?? 0} tone="info" />
+        </div>
+      </Card>
+
+      {/* Board */}
+      <Card className="rounded-2xl overflow-hidden">
+        <div className="p-4 border-b border-border flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <div className="text-sm font-medium">Jadual Followup — 1 baris per lead</div>
+            <div className="text-xs text-muted-foreground">
+              Klik kotak D untuk lihat detail semua hari untuk lead itu.
+            </div>
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {leadsRows.length} lead · {allDays.length} hari sequence
+          </div>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50 text-muted-foreground text-xs uppercase">
+              <tr>
+                <th className="text-left px-4 py-3">Nama Lead</th>
+                <th className="text-left px-4 py-3">Telefon</th>
+                <th className="text-left px-4 py-3">Status</th>
+                <th className="text-left px-4 py-3">Progress followup</th>
+              </tr>
+            </thead>
+            <tbody>
+              {leadsRows.map((lead: any) => {
+                const fus = ((lead.lead_followups ?? []) as any[]).slice().sort(
+                  (a, b) => Number(a.day_offset) - Number(b.day_offset),
+                );
+                const expanded = expandedLeadId === lead.id;
+                return (
+                  <FragmentRow key={lead.id}>
+                    <tr className="border-t border-border hover:bg-muted/20">
+                      <td className="px-4 py-3 font-medium">{lead.name}</td>
+                      <td className="px-4 py-3 text-muted-foreground font-mono text-xs">
+                        {lead.phone}
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge variant="outline" className={STATUS_COLOR[lead.followup_status]}>
+                          {lead.followup_status}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-1.5">
+                          {fus.length === 0 && (
+                            <span className="text-xs text-muted-foreground italic">
+                              Tiada jadual
+                            </span>
+                          )}
+                          {fus.map((f: any) => (
+                            <DayBox
+                              key={f.id}
+                              day={Number(f.day_offset)}
+                              status={f.status}
+                              onClick={() =>
+                                setExpandedLeadId(expanded ? null : lead.id)
+                              }
+                            />
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                    {expanded && (
+                      <tr className="border-t border-border bg-muted/10">
+                        <td colSpan={4} className="px-4 py-4">
+                          <div className="rounded-xl border border-border overflow-hidden bg-card">
+                            <table className="w-full text-xs">
+                              <thead className="bg-muted/50 text-muted-foreground uppercase">
+                                <tr>
+                                  <th className="text-left px-3 py-2">Hari</th>
+                                  <th className="text-left px-3 py-2">Status</th>
+                                  <th className="text-left px-3 py-2">Dijadualkan</th>
+                                  <th className="text-left px-3 py-2">Dihantar</th>
+                                  <th className="text-left px-3 py-2">Mesej</th>
+                                  <th className="text-right px-3 py-2">Aksi</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {fus.map((f: any) => (
+                                  <tr key={f.id} className="border-t border-border align-top">
+                                    <td className="px-3 py-2 font-mono">D{f.day_offset}</td>
+                                    <td className="px-3 py-2">
+                                      <Badge
+                                        variant="outline"
+                                        className={FU_STATUS_COLOR[f.status]}
+                                      >
+                                        {f.status}
+                                      </Badge>
+                                    </td>
+                                    <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">
+                                      {format(new Date(f.scheduled_at), "dd MMM, HH:mm")}
+                                    </td>
+                                    <td className="px-3 py-2 text-muted-foreground whitespace-nowrap">
+                                      {f.sent_at
+                                        ? format(new Date(f.sent_at), "dd MMM, HH:mm")
+                                        : "—"}
+                                    </td>
+                                    <td className="px-3 py-2 max-w-md">
+                                      <div className="whitespace-pre-wrap break-words text-foreground/80">
+                                        {f.rendered_message ??
+                                          f.error_message ??
+                                          <span className="italic text-muted-foreground">
+                                            Belum dihantar
+                                          </span>}
+                                      </div>
+                                    </td>
+                                    <td className="px-3 py-2 text-right">
+                                      {f.status === "pending" && (
+                                        <div className="inline-flex gap-1">
+                                          {props.isAdmin && (
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              onClick={() => props.onSendNow(f.id)}
+                                            >
+                                              <Send className="w-3 h-3 mr-1" />
+                                              Hantar
+                                            </Button>
+                                          )}
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => props.onCancelFollowup(f.id)}
+                                          >
+                                            <XCircle className="w-3 h-3 mr-1" />
+                                            Cancel
+                                          </Button>
+                                        </div>
+                                      )}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </FragmentRow>
+                );
+              })}
+              {board.isLoading && (
+                <tr>
+                  <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
+                    Memuatkan…
+                  </td>
+                </tr>
+              )}
+              {!board.isLoading && leadsRows.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
+                    Tiada lead diagihkan kepada sender ini.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function FragmentRow({ children }: { children: React.ReactNode }) {
+  return <>{children}</>;
+}
+
+function Metric(props: { label: string; value: number | string; tone: "success" | "warning" | "info" }) {
+  const toneClass =
+    props.tone === "success"
+      ? "text-success"
+      : props.tone === "warning"
+        ? "text-warning-foreground"
+        : "text-info";
+  return (
+    <div className="text-center">
+      <div className={`text-xl font-semibold ${toneClass}`}>{props.value}</div>
+      <div className="text-[11px] text-muted-foreground uppercase tracking-wide">{props.label}</div>
+    </div>
+  );
+}
+
+function DayBox(props: { day: number; status: string; onClick: () => void }) {
+  const base =
+    "min-w-[36px] h-8 px-2 rounded-md text-[11px] font-mono font-semibold flex items-center justify-center border transition-colors cursor-pointer";
+  let cls = "";
+  if (props.status === "sent") {
+    cls = "bg-success text-success-foreground border-success";
+  } else if (props.status === "cancelled") {
+    cls = "bg-transparent text-muted-foreground border-foreground/40";
+  } else if (props.status === "failed") {
+    cls = "bg-destructive/15 text-destructive border-destructive/40";
+  } else {
+    // pending
+    cls = "bg-transparent text-muted-foreground border-border hover:border-primary/60";
+  }
+  return (
+    <button type="button" onClick={props.onClick} className={`${base} ${cls}`} title={`D${props.day} · ${props.status}`}>
+      D{props.day}
+    </button>
   );
 }
