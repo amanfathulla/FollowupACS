@@ -1112,7 +1112,3 @@ function DayBox(props: { day: number; status: string; onClick: () => void }) {
     </button>
   );
 }
-      </Tabs>
-    </div>
-  );
-}
