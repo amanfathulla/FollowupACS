@@ -151,6 +151,8 @@ function LeadsPage() {
     Array<{ name: string; phone: string; product: string | null }> | null
   >(null);
   const [form, setForm] = useState({ name: "", phone: "", product: "" });
+  const [editing, setEditing] = useState<{ id: string; name: string; phone: string; product: string } | null>(null);
+  const [selectedSenderId, setSelectedSenderId] = useState<string | null>(null);
 
   const createMutation = useMutation({
     mutationFn: (payload: typeof form) => createLeadFn({ data: payload }),
