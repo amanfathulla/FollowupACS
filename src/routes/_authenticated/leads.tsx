@@ -221,6 +221,30 @@ function LeadsPage() {
     },
   });
 
+  const editLeadMutation = useMutation({
+    mutationFn: (v: { id: string; name: string; phone: string; product: string }) =>
+      updateLeadFn({ data: { id: v.id, name: v.name, phone: v.phone, product: v.product || null } }),
+    onSuccess: () => {
+      toast.success("Lead dikemaskini");
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["followup-board"] });
+      setEditing(null);
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal kemaskini lead"),
+  });
+
+  const deleteLeadMutation = useMutation({
+    mutationFn: (id: string) => deleteLeadFn({ data: { id } }),
+    onSuccess: () => {
+      toast.success("Lead dipadam");
+      qc.invalidateQueries({ queryKey: ["leads"] });
+      qc.invalidateQueries({ queryKey: ["followups"] });
+      qc.invalidateQueries({ queryKey: ["followup-board"] });
+      qc.invalidateQueries({ queryKey: ["stats"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal padam lead"),
+  });
+
   const cancelMutation = useMutation({
     mutationFn: (id: string) => cancelFollowupFn({ data: { id } }),
     onSuccess: () => {
