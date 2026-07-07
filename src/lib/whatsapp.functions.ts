@@ -235,6 +235,98 @@ export const updateLeadStatus = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const updateLead = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string; name?: string; phone?: string; product?: string | null }) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        name: z.string().min(1).max(120).optional(),
+        phone: z.string().min(6).max(30).optional(),
+        product: z.string().max(120).nullable().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { id, ...patch } = data;
+    const { error } = await context.supabase
+      .from("leads")
+      .update({ ...patch, updated_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const deleteLead = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string }) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context);
+    const { error } = await context.supabase.from("leads").delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+// ---------- Followup Board (grouped by lead per sender) ----------
+
+export const getFollowupBoard = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { senderId: string }) =>
+    z.object({ senderId: z.string().uuid() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = new Date();
+    end.setHours(23, 59, 59, 999);
+
+    const [senderRes, leadsRes, sentTodayRes, pendingRes, activeLeadsRes] = await Promise.all([
+      context.supabase
+        .from("whatsapp_senders")
+        .select("id, label, phone_number, connection_status, is_active")
+        .eq("id", data.senderId)
+        .maybeSingle(),
+      context.supabase
+        .from("leads")
+        .select(
+          "id, name, phone, product, followup_status, created_at, lead_followups(id, day_offset, status, scheduled_at, sent_at, rendered_message, error_message)",
+        )
+        .eq("assigned_sender_id", data.senderId)
+        .order("created_at", { ascending: false })
+        .limit(500),
+      context.supabase
+        .from("lead_followups")
+        .select("id, leads!inner(assigned_sender_id)", { count: "exact", head: true })
+        .eq("status", "sent")
+        .eq("leads.assigned_sender_id", data.senderId)
+        .gte("sent_at", start.toISOString())
+        .lte("sent_at", end.toISOString()),
+      context.supabase
+        .from("lead_followups")
+        .select("id, leads!inner(assigned_sender_id)", { count: "exact", head: true })
+        .eq("status", "pending")
+        .eq("leads.assigned_sender_id", data.senderId),
+      context.supabase
+        .from("leads")
+        .select("id", { count: "exact", head: true })
+        .eq("assigned_sender_id", data.senderId)
+        .eq("followup_status", "active"),
+    ]);
+
+    if (senderRes.error) throw new Error(senderRes.error.message);
+    if (leadsRes.error) throw new Error(leadsRes.error.message);
+
+    return {
+      sender: senderRes.data,
+      summary: {
+        sentToday: sentTodayRes.count ?? 0,
+        pending: pendingRes.count ?? 0,
+        activeLeads: activeLeadsRes.count ?? 0,
+      },
+      leads: leadsRes.data ?? [],
+    };
+  });
+
 // ---------- Followups ----------
 
 export const listFollowups = createServerFn({ method: "POST" })
