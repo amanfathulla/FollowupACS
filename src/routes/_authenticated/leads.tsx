@@ -64,12 +64,16 @@ import {
   createLead,
   bulkImportLeads,
   updateLeadStatus,
+  updateLead,
+  deleteLead,
   cancelFollowup,
   sendFollowupNow,
   getSettings,
   updateSettings,
   getMyRole,
+  getFollowupBoard,
 } from "@/lib/whatsapp.functions";
+import { listSenders } from "@/lib/senders.functions";
 
 export const Route = createFileRoute("/_authenticated/leads")({
   component: LeadsPage,
