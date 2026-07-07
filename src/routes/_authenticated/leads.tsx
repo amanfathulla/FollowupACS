@@ -599,6 +599,31 @@ function LeadsPage() {
                           >
                             Aktifkan semula
                           </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              setEditing({
+                                id: l.id,
+                                name: l.name ?? "",
+                                phone: l.phone ?? "",
+                                product: l.product ?? "",
+                              })
+                            }
+                          >
+                            <Pencil className="w-4 h-4 mr-2" />
+                            Edit lead
+                          </DropdownMenuItem>
+                          {isAdmin && (
+                            <DropdownMenuItem
+                              className="text-destructive focus:text-destructive"
+                              onClick={() => {
+                                if (confirm(`Padam lead "${l.name}"? Semua followup akan dipadam.`))
+                                  deleteLeadMutation.mutate(l.id);
+                              }}
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Padam lead
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </td>
