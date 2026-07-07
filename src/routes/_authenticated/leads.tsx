@@ -128,6 +128,8 @@ function LeadsPage() {
   const createLeadFn = useServerFn(createLead);
   const bulkImportLeadsFn = useServerFn(bulkImportLeads);
   const updateLeadStatusFn = useServerFn(updateLeadStatus);
+  const updateLeadFn = useServerFn(updateLead);
+  const deleteLeadFn = useServerFn(deleteLead);
   const cancelFollowupFn = useServerFn(cancelFollowup);
   const sendFollowupNowFn = useServerFn(sendFollowupNow);
   const getSettingsFn = useServerFn(getSettings);
