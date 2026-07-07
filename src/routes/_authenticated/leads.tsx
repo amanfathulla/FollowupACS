@@ -16,6 +16,11 @@ import {
   XCircle,
   ExternalLink,
   Upload,
+  Pencil,
+  Trash2,
+  ArrowLeft,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
 import {
   BarChart,
