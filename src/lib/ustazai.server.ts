@@ -199,14 +199,19 @@ export async function sendUstazaiMessage(params: {
   number: string;
   message: string;
   senderOverride?: string | null;
+  meta?: LogMeta;
 }): Promise<SendResult> {
   const senderToUse = params.senderOverride?.trim() || params.credentials.sender;
-  return postJson("https://ustazai.my/send-message", {
-    api_key: params.credentials.apiKey,
-    sender: senderToUse,
-    number: params.number,
-    message: params.message,
-  });
+  return postJson(
+    "https://ustazai.my/send-message",
+    {
+      api_key: params.credentials.apiKey,
+      sender: senderToUse,
+      number: params.number,
+      message: params.message,
+    },
+    { ...(params.meta ?? {}), phone: params.number, sender: senderToUse },
+  );
 }
 
 export async function sendUstazaiMedia(params: {
@@ -216,6 +221,7 @@ export async function sendUstazaiMedia(params: {
   url: string;
   caption?: string;
   senderOverride?: string | null;
+  meta?: LogMeta;
 }): Promise<SendResult> {
   const senderToUse = params.senderOverride?.trim() || params.credentials.sender;
   const body: Record<string, unknown> = {
@@ -226,7 +232,11 @@ export async function sendUstazaiMedia(params: {
     url: params.url,
   };
   if (params.caption && params.caption.trim()) body.caption = params.caption;
-  return postJson("https://ustazai.my/send-media", body);
+  return postJson("https://ustazai.my/send-media", body, {
+    ...(params.meta ?? {}),
+    phone: params.number,
+    sender: senderToUse,
+  });
 }
 
 export async function generateQrCode(params: {
