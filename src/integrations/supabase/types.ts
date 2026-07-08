@@ -369,6 +369,60 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_api_logs: {
+        Row: {
+          created_at: string
+          duration_ms: number | null
+          endpoint: string
+          error_message: string | null
+          followup_id: string | null
+          id: string
+          lead_id: string | null
+          method: string
+          ok: boolean
+          phone: string | null
+          request_body: Json | null
+          response_body: string | null
+          response_status: number | null
+          sender: string | null
+          sender_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          duration_ms?: number | null
+          endpoint: string
+          error_message?: string | null
+          followup_id?: string | null
+          id?: string
+          lead_id?: string | null
+          method?: string
+          ok?: boolean
+          phone?: string | null
+          request_body?: Json | null
+          response_body?: string | null
+          response_status?: number | null
+          sender?: string | null
+          sender_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          duration_ms?: number | null
+          endpoint?: string
+          error_message?: string | null
+          followup_id?: string | null
+          id?: string
+          lead_id?: string | null
+          method?: string
+          ok?: boolean
+          phone?: string | null
+          request_body?: Json | null
+          response_body?: string | null
+          response_status?: number | null
+          sender?: string | null
+          sender_id?: string | null
+        }
+        Relationships: []
+      }
       whatsapp_credentials: {
         Row: {
           api_key: string | null
