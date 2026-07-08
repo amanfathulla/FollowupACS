@@ -70,7 +70,68 @@ export type SendResult =
   | { ok: true; messageId: string | null; raw: unknown }
   | { ok: false; error: string; raw: unknown };
 
-async function postJson(url: string, body: Record<string, unknown>): Promise<SendResult> {
+type LogMeta = {
+  phone?: string | null;
+  sender?: string | null;
+  leadId?: string | null;
+  followupId?: string | null;
+  senderId?: string | null;
+};
+
+async function logApiCall(entry: {
+  endpoint: string;
+  method: string;
+  request_body: Record<string, unknown>;
+  response_status: number | null;
+  response_body: string;
+  ok: boolean;
+  error_message: string | null;
+  duration_ms: number;
+  meta: LogMeta;
+}) {
+  const redacted: Record<string, unknown> = { ...entry.request_body };
+  if (typeof redacted.api_key === "string") {
+    const k = redacted.api_key as string;
+    redacted.api_key = `${k.slice(0, 4)}…(len:${k.length})`;
+  }
+  // eslint-disable-next-line no-console
+  console.log("[ustazai]", {
+    endpoint: entry.endpoint,
+    status: entry.response_status,
+    ok: entry.ok,
+    duration_ms: entry.duration_ms,
+    request: redacted,
+    response: entry.response_body.slice(0, 500),
+    meta: entry.meta,
+  });
+  try {
+    await supabaseAdmin.from("whatsapp_api_logs").insert({
+      endpoint: entry.endpoint,
+      method: entry.method,
+      phone: entry.meta.phone ?? null,
+      sender: entry.meta.sender ?? null,
+      request_body: redacted as any,
+      response_status: entry.response_status,
+      response_body: entry.response_body.slice(0, 4000),
+      ok: entry.ok,
+      error_message: entry.error_message,
+      lead_id: entry.meta.leadId ?? null,
+      followup_id: entry.meta.followupId ?? null,
+      sender_id: entry.meta.senderId ?? null,
+      duration_ms: entry.duration_ms,
+    });
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error("[ustazai] failed to persist log", err);
+  }
+}
+
+async function postJson(
+  url: string,
+  body: Record<string, unknown>,
+  meta: LogMeta = {},
+): Promise<SendResult> {
+  const startedAt = Date.now();
   try {
     const response = await fetch(url, {
       method: "POST",
@@ -84,16 +145,51 @@ async function postJson(url: string, body: Record<string, unknown>): Promise<Sen
     } catch {
       /* keep as text */
     }
+    const duration = Date.now() - startedAt;
     if (!response.ok) {
-      return { ok: false, error: `HTTP ${response.status}: ${text.slice(0, 300)}`, raw };
+      const error = `HTTP ${response.status}: ${text.slice(0, 300)}`;
+      await logApiCall({
+        endpoint: url,
+        method: "POST",
+        request_body: body,
+        response_status: response.status,
+        response_body: text,
+        ok: false,
+        error_message: error,
+        duration_ms: duration,
+        meta,
+      });
+      return { ok: false, error, raw };
     }
     const messageId =
       raw && typeof raw === "object" && raw !== null && "message_id" in raw
         ? String((raw as Record<string, unknown>).message_id ?? "") || null
         : null;
+    await logApiCall({
+      endpoint: url,
+      method: "POST",
+      request_body: body,
+      response_status: response.status,
+      response_body: text,
+      ok: true,
+      error_message: null,
+      duration_ms: duration,
+      meta,
+    });
     return { ok: true, messageId, raw };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    await logApiCall({
+      endpoint: url,
+      method: "POST",
+      request_body: body,
+      response_status: null,
+      response_body: message,
+      ok: false,
+      error_message: message,
+      duration_ms: Date.now() - startedAt,
+      meta,
+    });
     return { ok: false, error: message, raw: null };
   }
 }
@@ -103,14 +199,19 @@ export async function sendUstazaiMessage(params: {
   number: string;
   message: string;
   senderOverride?: string | null;
+  meta?: LogMeta;
 }): Promise<SendResult> {
   const senderToUse = params.senderOverride?.trim() || params.credentials.sender;
-  return postJson("https://ustazai.my/send-message", {
-    api_key: params.credentials.apiKey,
-    sender: senderToUse,
-    number: params.number,
-    message: params.message,
-  });
+  return postJson(
+    "https://ustazai.my/send-message",
+    {
+      api_key: params.credentials.apiKey,
+      sender: senderToUse,
+      number: params.number,
+      message: params.message,
+    },
+    { ...(params.meta ?? {}), phone: params.number, sender: senderToUse },
+  );
 }
 
 export async function sendUstazaiMedia(params: {
@@ -120,6 +221,7 @@ export async function sendUstazaiMedia(params: {
   url: string;
   caption?: string;
   senderOverride?: string | null;
+  meta?: LogMeta;
 }): Promise<SendResult> {
   const senderToUse = params.senderOverride?.trim() || params.credentials.sender;
   const body: Record<string, unknown> = {
@@ -130,7 +232,11 @@ export async function sendUstazaiMedia(params: {
     url: params.url,
   };
   if (params.caption && params.caption.trim()) body.caption = params.caption;
-  return postJson("https://ustazai.my/send-media", body);
+  return postJson("https://ustazai.my/send-media", body, {
+    ...(params.meta ?? {}),
+    phone: params.number,
+    sender: senderToUse,
+  });
 }
 
 export async function generateQrCode(params: {

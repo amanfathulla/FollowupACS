@@ -570,28 +570,58 @@ export const setCredentials = createServerFn({ method: "POST" })
 
 export const testConnection = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { number: string; message?: string }) =>
+  .inputValidator((d: { number: string; message?: string; senderId?: string | null }) =>
     z
       .object({
         number: z.string().min(6).max(30),
         message: z.string().max(500).optional(),
+        senderId: z.string().uuid().nullable().optional(),
       })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
     await requireAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { loadCredentials, normalizePhone, sendUstazaiMessage } = await import(
       "./ustazai.server"
     );
     const creds = await loadCredentials();
     if (!creds) throw new Error("API ustazai.my belum disetkan");
+
+    // Pick sender phone: explicit -> first active connected -> creds.sender
+    let senderPhone: string | undefined;
+    let senderIdUsed: string | null = null;
+    if (data.senderId) {
+      const { data: s } = await supabaseAdmin
+        .from("whatsapp_senders")
+        .select("id, phone_number")
+        .eq("id", data.senderId)
+        .maybeSingle();
+      senderPhone = s?.phone_number as string | undefined;
+      senderIdUsed = (s?.id as string | undefined) ?? null;
+    }
+    if (!senderPhone) {
+      const { data: s } = await supabaseAdmin
+        .from("whatsapp_senders")
+        .select("id, phone_number")
+        .eq("is_active", true)
+        .eq("connection_status", "connected")
+        .order("created_at")
+        .limit(1)
+        .maybeSingle();
+      senderPhone = s?.phone_number as string | undefined;
+      senderIdUsed = (s?.id as string | undefined) ?? null;
+    }
+
     const result = await sendUstazaiMessage({
       credentials: creds,
       number: normalizePhone(data.number),
       message: data.message ?? "Test mesej dari ACS CRM ✅",
+      senderOverride: senderPhone,
+      meta: { senderId: senderIdUsed },
     });
     if (!result.ok) throw new Error(result.error);
-    return { ok: true, messageId: result.messageId };
+    return { ok: true, messageId: result.messageId, senderUsed: senderPhone ?? null };
   });
 
 // ---------- Live Chat ----------
@@ -713,7 +743,33 @@ export const listSendersLite = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data } = await context.supabase
       .from("whatsapp_senders")
-      .select("id, label, phone_number")
+      .select("id, label, phone_number, is_active, connection_status")
       .order("created_at");
     return data ?? [];
+  });
+
+// ---------- API Debug Logs ----------
+
+export const listApiLogs = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { onlyFailed?: boolean; limit?: number }) =>
+    z
+      .object({
+        onlyFailed: z.boolean().optional(),
+        limit: z.number().int().min(1).max(200).optional(),
+      })
+      .parse(d ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    let q = context.supabase
+      .from("whatsapp_api_logs")
+      .select(
+        "id, endpoint, method, phone, sender, response_status, response_body, ok, error_message, duration_ms, created_at",
+      )
+      .order("created_at", { ascending: false })
+      .limit(data.limit ?? 50);
+    if (data.onlyFailed) q = q.eq("ok", false);
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+    return rows ?? [];
   });
