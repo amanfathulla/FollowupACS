@@ -743,7 +743,33 @@ export const listSendersLite = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data } = await context.supabase
       .from("whatsapp_senders")
-      .select("id, label, phone_number")
+      .select("id, label, phone_number, is_active, connection_status")
       .order("created_at");
     return data ?? [];
+  });
+
+// ---------- API Debug Logs ----------
+
+export const listApiLogs = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { onlyFailed?: boolean; limit?: number }) =>
+    z
+      .object({
+        onlyFailed: z.boolean().optional(),
+        limit: z.number().int().min(1).max(200).optional(),
+      })
+      .parse(d ?? {}),
+  )
+  .handler(async ({ data, context }) => {
+    let q = context.supabase
+      .from("whatsapp_api_logs")
+      .select(
+        "id, endpoint, method, phone, sender, response_status, response_body, ok, error_message, duration_ms, created_at",
+      )
+      .order("created_at", { ascending: false })
+      .limit(data.limit ?? 50);
+    if (data.onlyFailed) q = q.eq("ok", false);
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+    return rows ?? [];
   });
