@@ -355,6 +355,53 @@ export const listFollowups = createServerFn({ method: "POST" })
     return rows ?? [];
   });
 
+export const getSchedulerInfo = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const now = new Date();
+    const oneHour = new Date(now.getTime() + 60 * 60 * 1000);
+
+    const [nextHourRes, overdueRes, nextRowRes] = await Promise.all([
+      context.supabase
+        .from("lead_followups")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "pending")
+        .gte("scheduled_at", now.toISOString())
+        .lte("scheduled_at", oneHour.toISOString()),
+      context.supabase
+        .from("lead_followups")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "pending")
+        .lt("scheduled_at", now.toISOString()),
+      context.supabase
+        .from("lead_followups")
+        .select("scheduled_at")
+        .eq("status", "pending")
+        .gte("scheduled_at", now.toISOString())
+        .order("scheduled_at", { ascending: true })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+
+    const serverTz =
+      Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    const serverOffsetMin = -now.getTimezoneOffset();
+    const sign = serverOffsetMin >= 0 ? "+" : "-";
+    const abs = Math.abs(serverOffsetMin);
+    const offsetLabel = `UTC${sign}${String(Math.floor(abs / 60)).padStart(2, "0")}:${String(abs % 60).padStart(2, "0")}`;
+
+    return {
+      serverTimezone: serverTz,
+      serverOffsetLabel: offsetLabel,
+      displayTimezone: "Asia/Kuala_Lumpur",
+      serverNowIso: now.toISOString(),
+      nextHourIso: oneHour.toISOString(),
+      scheduledNextHour: nextHourRes.count ?? 0,
+      overduePending: overdueRes.count ?? 0,
+      nextScheduledAt: (nextRowRes.data?.scheduled_at as string | null) ?? null,
+    };
+  });
+
 export const todayStats = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
