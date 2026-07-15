@@ -27,6 +27,7 @@ import {
   getMyRole,
   listSendersLite,
   listApiLogs,
+  getSchedulerInfo,
 } from "@/lib/whatsapp.functions";
 import { SendersPanel } from "@/components/whatsapp/senders-panel";
 
