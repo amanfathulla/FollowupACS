@@ -55,6 +55,11 @@ function WhatsappSettingsPage() {
     queryFn: () => listLogsFn({ data: { limit: 30 } }),
     refetchInterval: 15000,
   });
+  const scheduler = useQuery({
+    queryKey: ["scheduler-info"],
+    queryFn: () => getSchedulerInfoFn(),
+    refetchInterval: 30000,
+  });
 
   const [showKey, setShowKey] = useState(false);
   const [apiKey, setApiKey] = useState("");
