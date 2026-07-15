@@ -45,6 +45,7 @@ function WhatsappSettingsPage() {
   const getMyRoleFn = useServerFn(getMyRole);
   const listSendersFn = useServerFn(listSendersLite);
   const listLogsFn = useServerFn(listApiLogs);
+  const getSchedulerInfoFn = useServerFn(getSchedulerInfo);
 
   const me = useQuery({ queryKey: ["me"], queryFn: () => getMyRoleFn() });
   const settings = useQuery({ queryKey: ["settings"], queryFn: () => getSettingsFn() });
