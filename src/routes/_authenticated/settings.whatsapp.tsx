@@ -233,8 +233,92 @@ function WhatsappSettingsPage() {
         </div>
       </Card>
 
+      {/* Scheduler status */}
+      <Card className="p-6 rounded-2xl space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+              <Clock className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="font-medium">Status Scheduler</div>
+              <div className="text-xs text-muted-foreground">
+                Sahkan timezone server & bilangan followup dalam 1 jam berikutnya.
+              </div>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => qc.invalidateQueries({ queryKey: ["scheduler-info"] })}
+          >
+            <RefreshCw className="w-4 h-4 mr-2" /> Refresh
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="rounded-xl border p-3">
+            <div className="text-xs text-muted-foreground">Timezone server</div>
+            <div className="text-sm font-medium mt-1">
+              {scheduler.data?.serverTimezone ?? "—"}
+            </div>
+            <div className="text-xs text-muted-foreground mt-0.5">
+              {scheduler.data?.serverOffsetLabel ?? ""}
+            </div>
+          </div>
+          <div className="rounded-xl border p-3">
+            <div className="text-xs text-muted-foreground">Masa server sekarang</div>
+            <div className="text-sm font-medium mt-1">
+              {scheduler.data?.serverNowIso
+                ? new Date(scheduler.data.serverNowIso).toLocaleString("en-MY", {
+                    timeZone: "Asia/Kuala_Lumpur",
+                    hour12: false,
+                  })
+                : "—"}
+            </div>
+            <div className="text-xs text-muted-foreground mt-0.5">
+              paparan: Asia/Kuala_Lumpur (UTC+08:00)
+            </div>
+          </div>
+          <div className="rounded-xl border p-3">
+            <div className="text-xs text-muted-foreground">Dijadualkan 1 jam berikutnya</div>
+            <div className="text-2xl font-semibold mt-1">
+              {scheduler.data?.scheduledNextHour ?? 0}
+            </div>
+            <div className="text-xs text-muted-foreground mt-0.5">
+              status = pending, scheduled_at ≤ {scheduler.data?.nextHourIso
+                ? new Date(scheduler.data.nextHourIso).toLocaleTimeString("en-MY", {
+                    timeZone: "Asia/Kuala_Lumpur",
+                    hour12: false,
+                  })
+                : "—"}
+            </div>
+          </div>
+          <div className="rounded-xl border p-3">
+            <div className="text-xs text-muted-foreground">Overdue (belum dihantar)</div>
+            <div className="text-2xl font-semibold mt-1">
+              {scheduler.data?.overduePending ?? 0}
+            </div>
+            <div className="text-xs text-muted-foreground mt-0.5">
+              {scheduler.data?.nextScheduledAt
+                ? `Seterusnya: ${new Date(scheduler.data.nextScheduledAt).toLocaleString("en-MY", {
+                    timeZone: "Asia/Kuala_Lumpur",
+                    hour12: false,
+                  })}`
+                : "Tiada pending akan datang"}
+            </div>
+          </div>
+        </div>
+
+        <p className="text-xs text-muted-foreground">
+          Nota: <code>scheduled_at</code> disimpan dalam UTC (timestamptz). Jika masa server jauh
+          berbeza dengan Asia/Kuala_Lumpur, cron mungkin tersasar — semak nilai di atas.
+        </p>
+      </Card>
+
       {/* Senders list (multiple) */}
       <SendersPanel />
+
 
       {/* API Debug Logs */}
       <Card className="p-6 rounded-2xl space-y-3">
