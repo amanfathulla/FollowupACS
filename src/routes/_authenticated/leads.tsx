@@ -194,7 +194,8 @@ function LeadsPage() {
             r.Telefon ?? r.telefon ?? r.Phone ?? r.phone ?? r.Nombor ?? r.nombor ?? "",
           ).trim();
           const product = String(r.Produk ?? r.produk ?? r.Product ?? r.product ?? "").trim();
-          return { name, phone, product: product || null };
+          const carModel = String(r["Model Kereta"] ?? r["Model kereta"] ?? r.model_kereta ?? r.ModelKereta ?? r.Model ?? r.model ?? "").trim();
+          return { name, phone, product: product || null, car_model: carModel || null };
         })
         .filter((r) => r.name.length > 0 && r.phone.length >= 6);
       if (parsed.length === 0) {
