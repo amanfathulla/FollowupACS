@@ -393,8 +393,8 @@ function LeadsPage() {
               <div className="space-y-4">
                 <div className="text-xs text-muted-foreground">
                   Lajur diperlukan: <code>Nama</code>, <code>Telefon</code>. Opsyenal:{" "}
-                  <code>Produk</code>. Maksimum 500 lead per import. Setiap lead akan
-                  diagihkan automatik ke nombor sender aktif.
+                  <code>Produk</code>, <code>Model Kereta</code>. Maksimum 500 lead per import.
+                  Setiap lead akan diagihkan automatik ke nombor sender aktif.
                 </div>
 
                 {!importPreview && (
