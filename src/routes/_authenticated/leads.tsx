@@ -356,6 +356,14 @@ function LeadsPage() {
                     onChange={(e) => setForm((f) => ({ ...f, product: e.target.value }))}
                   />
                 </div>
+                <div>
+                  <Label htmlFor="car_model">Model Kereta (opsyenal)</Label>
+                  <Input
+                    id="car_model"
+                    value={form.car_model}
+                    onChange={(e) => setForm((f) => ({ ...f, car_model: e.target.value }))}
+                  />
+                </div>
                 <DialogFooter>
                   <Button type="submit" disabled={createMutation.isPending}>
                     Simpan
