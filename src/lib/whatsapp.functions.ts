@@ -195,6 +195,7 @@ export const bulkImportLeads = createServerFn({ method: "POST" })
               name: z.string().min(1).max(120),
               phone: z.string().min(6).max(30),
               product: z.string().max(120).optional().nullable(),
+              car_model: z.string().max(120).optional().nullable(),
               notes: z.string().max(2000).optional().nullable(),
             }),
           )
@@ -208,6 +209,7 @@ export const bulkImportLeads = createServerFn({ method: "POST" })
       name: r.name,
       phone: r.phone,
       product: r.product ?? null,
+      car_model: r.car_model ?? null,
       notes: r.notes ?? null,
       created_by: context.userId,
     }));
