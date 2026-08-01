@@ -565,6 +565,7 @@ function LeadsPage() {
                     <td className="px-4 py-3 font-medium">{l.name}</td>
                     <td className="px-4 py-3 text-muted-foreground">{l.phone}</td>
                     <td className="px-4 py-3 text-muted-foreground">{l.product ?? "—"}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{l.car_model ?? "—"}</td>
                     <td className="px-4 py-3">
                       <Badge variant="outline" className={STATUS_COLOR[l.followup_status]}>
                         {l.followup_status}
