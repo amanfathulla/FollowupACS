@@ -607,6 +607,7 @@ function LeadsPage() {
                                 name: l.name ?? "",
                                 phone: l.phone ?? "",
                                 product: l.product ?? "",
+                                car_model: l.car_model ?? "",
                               })
                             }
                           >
