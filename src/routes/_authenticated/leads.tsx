@@ -168,7 +168,7 @@ function LeadsPage() {
   });
 
   const bulkImportMutation = useMutation({
-    mutationFn: (rows: Array<{ name: string; phone: string; product: string | null }>) =>
+    mutationFn: (rows: Array<{ name: string; phone: string; product: string | null; car_model: string | null }>) =>
       bulkImportLeadsFn({ data: { rows } }),
     onSuccess: (r) => {
       toast.success(`Berjaya import ${r.inserted} lead — followup dijana automatik`);
