@@ -241,13 +241,14 @@ export const updateLeadStatus = createServerFn({ method: "POST" })
 
 export const updateLead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { id: string; name?: string; phone?: string; product?: string | null }) =>
+  .inputValidator((d: { id: string; name?: string; phone?: string; product?: string | null; car_model?: string | null }) =>
     z
       .object({
         id: z.string().uuid(),
         name: z.string().min(1).max(120).optional(),
         phone: z.string().min(6).max(30).optional(),
         product: z.string().max(120).nullable().optional(),
+        car_model: z.string().max(120).nullable().optional(),
       })
       .parse(d),
   )
