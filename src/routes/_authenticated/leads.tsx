@@ -553,6 +553,7 @@ function LeadsPage() {
                   <th className="text-left px-4 py-3">Nama</th>
                   <th className="text-left px-4 py-3">Telefon</th>
                   <th className="text-left px-4 py-3">Produk</th>
+                  <th className="text-left px-4 py-3">Model Kereta</th>
                   <th className="text-left px-4 py-3">Status</th>
                   <th className="text-left px-4 py-3">Tarikh</th>
                   <th className="text-right px-4 py-3">Aksi</th>
