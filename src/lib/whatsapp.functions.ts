@@ -156,12 +156,13 @@ export const listLeads = createServerFn({ method: "GET" })
 
 export const createLead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { name: string; phone: string; product?: string; notes?: string }) =>
+  .inputValidator((d: { name: string; phone: string; product?: string; car_model?: string; notes?: string }) =>
     z
       .object({
         name: z.string().min(1).max(120),
         phone: z.string().min(6).max(30),
         product: z.string().max(120).optional().nullable(),
+        car_model: z.string().max(120).optional().nullable(),
         notes: z.string().max(2000).optional().nullable(),
       })
       .parse(d),
@@ -173,6 +174,7 @@ export const createLead = createServerFn({ method: "POST" })
         name: data.name,
         phone: data.phone,
         product: data.product ?? null,
+        car_model: data.car_model ?? null,
         notes: data.notes ?? null,
         created_by: context.userId,
       })
