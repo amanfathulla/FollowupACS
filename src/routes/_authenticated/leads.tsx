@@ -148,10 +148,10 @@ function LeadsPage() {
   const [openLead, setOpenLead] = useState(false);
   const [openImport, setOpenImport] = useState(false);
   const [importPreview, setImportPreview] = useState<
-    Array<{ name: string; phone: string; product: string | null }> | null
+    Array<{ name: string; phone: string; product: string | null; car_model: string | null }> | null
   >(null);
-  const [form, setForm] = useState({ name: "", phone: "", product: "" });
-  const [editing, setEditing] = useState<{ id: string; name: string; phone: string; product: string } | null>(null);
+  const [form, setForm] = useState({ name: "", phone: "", product: "", car_model: "" });
+  const [editing, setEditing] = useState<{ id: string; name: string; phone: string; product: string; car_model: string } | null>(null);
   const [selectedSenderId, setSelectedSenderId] = useState<string | null>(null);
 
   const createMutation = useMutation({
