@@ -428,6 +428,7 @@ function LeadsPage() {
                             <th className="text-left px-3 py-2">Nama</th>
                             <th className="text-left px-3 py-2">Telefon</th>
                             <th className="text-left px-3 py-2">Produk</th>
+                            <th className="text-left px-3 py-2">Model Kereta</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -437,6 +438,9 @@ function LeadsPage() {
                               <td className="px-3 py-2 font-mono text-xs">{r.phone}</td>
                               <td className="px-3 py-2 text-muted-foreground">
                                 {r.product ?? "—"}
+                              </td>
+                              <td className="px-3 py-2 text-muted-foreground">
+                                {r.car_model ?? "—"}
                               </td>
                             </tr>
                           ))}
