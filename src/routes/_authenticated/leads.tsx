@@ -148,10 +148,10 @@ function LeadsPage() {
   const [openLead, setOpenLead] = useState(false);
   const [openImport, setOpenImport] = useState(false);
   const [importPreview, setImportPreview] = useState<
-    Array<{ name: string; phone: string; product: string | null }> | null
+    Array<{ name: string; phone: string; product: string | null; car_model: string | null }> | null
   >(null);
-  const [form, setForm] = useState({ name: "", phone: "", product: "" });
-  const [editing, setEditing] = useState<{ id: string; name: string; phone: string; product: string } | null>(null);
+  const [form, setForm] = useState({ name: "", phone: "", product: "", car_model: "" });
+  const [editing, setEditing] = useState<{ id: string; name: string; phone: string; product: string; car_model: string } | null>(null);
   const [selectedSenderId, setSelectedSenderId] = useState<string | null>(null);
 
   const createMutation = useMutation({
@@ -162,13 +162,13 @@ function LeadsPage() {
       qc.invalidateQueries({ queryKey: ["followups"] });
       qc.invalidateQueries({ queryKey: ["stats"] });
       setOpenLead(false);
-      setForm({ name: "", phone: "", product: "" });
+      setForm({ name: "", phone: "", product: "", car_model: "" });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal tambah lead"),
   });
 
   const bulkImportMutation = useMutation({
-    mutationFn: (rows: Array<{ name: string; phone: string; product: string | null }>) =>
+    mutationFn: (rows: Array<{ name: string; phone: string; product: string | null; car_model: string | null }>) =>
       bulkImportLeadsFn({ data: { rows } }),
     onSuccess: (r) => {
       toast.success(`Berjaya import ${r.inserted} lead — followup dijana automatik`);
@@ -194,7 +194,8 @@ function LeadsPage() {
             r.Telefon ?? r.telefon ?? r.Phone ?? r.phone ?? r.Nombor ?? r.nombor ?? "",
           ).trim();
           const product = String(r.Produk ?? r.produk ?? r.Product ?? r.product ?? "").trim();
-          return { name, phone, product: product || null };
+          const carModel = String(r["Model Kereta"] ?? r["Model kereta"] ?? r.model_kereta ?? r.ModelKereta ?? r.Model ?? r.model ?? "").trim();
+          return { name, phone, product: product || null, car_model: carModel || null };
         })
         .filter((r) => r.name.length > 0 && r.phone.length >= 6);
       if (parsed.length === 0) {
@@ -355,6 +356,14 @@ function LeadsPage() {
                     onChange={(e) => setForm((f) => ({ ...f, product: e.target.value }))}
                   />
                 </div>
+                <div>
+                  <Label htmlFor="car_model">Model Kereta (opsyenal)</Label>
+                  <Input
+                    id="car_model"
+                    value={form.car_model}
+                    onChange={(e) => setForm((f) => ({ ...f, car_model: e.target.value }))}
+                  />
+                </div>
                 <DialogFooter>
                   <Button type="submit" disabled={createMutation.isPending}>
                     Simpan
@@ -384,8 +393,8 @@ function LeadsPage() {
               <div className="space-y-4">
                 <div className="text-xs text-muted-foreground">
                   Lajur diperlukan: <code>Nama</code>, <code>Telefon</code>. Opsyenal:{" "}
-                  <code>Produk</code>. Maksimum 500 lead per import. Setiap lead akan
-                  diagihkan automatik ke nombor sender aktif.
+                  <code>Produk</code>, <code>Model Kereta</code>. Maksimum 500 lead per import.
+                  Setiap lead akan diagihkan automatik ke nombor sender aktif.
                 </div>
 
                 {!importPreview && (
@@ -419,6 +428,7 @@ function LeadsPage() {
                             <th className="text-left px-3 py-2">Nama</th>
                             <th className="text-left px-3 py-2">Telefon</th>
                             <th className="text-left px-3 py-2">Produk</th>
+                            <th className="text-left px-3 py-2">Model Kereta</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -428,6 +438,9 @@ function LeadsPage() {
                               <td className="px-3 py-2 font-mono text-xs">{r.phone}</td>
                               <td className="px-3 py-2 text-muted-foreground">
                                 {r.product ?? "—"}
+                              </td>
+                              <td className="px-3 py-2 text-muted-foreground">
+                                {r.car_model ?? "—"}
                               </td>
                             </tr>
                           ))}
@@ -544,6 +557,7 @@ function LeadsPage() {
                   <th className="text-left px-4 py-3">Nama</th>
                   <th className="text-left px-4 py-3">Telefon</th>
                   <th className="text-left px-4 py-3">Produk</th>
+                  <th className="text-left px-4 py-3">Model Kereta</th>
                   <th className="text-left px-4 py-3">Status</th>
                   <th className="text-left px-4 py-3">Tarikh</th>
                   <th className="text-right px-4 py-3">Aksi</th>
@@ -555,6 +569,7 @@ function LeadsPage() {
                     <td className="px-4 py-3 font-medium">{l.name}</td>
                     <td className="px-4 py-3 text-muted-foreground">{l.phone}</td>
                     <td className="px-4 py-3 text-muted-foreground">{l.product ?? "—"}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{l.car_model ?? "—"}</td>
                     <td className="px-4 py-3">
                       <Badge variant="outline" className={STATUS_COLOR[l.followup_status]}>
                         {l.followup_status}
@@ -606,6 +621,7 @@ function LeadsPage() {
                                 name: l.name ?? "",
                                 phone: l.phone ?? "",
                                 product: l.product ?? "",
+                                car_model: l.car_model ?? "",
                               })
                             }
                           >
@@ -631,7 +647,7 @@ function LeadsPage() {
                 ))}
                 {leads.data?.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
+                    <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
                       Belum ada lead. Klik "Tambah Lead" untuk mula.
                     </td>
                   </tr>
@@ -740,6 +756,14 @@ function LeadsPage() {
                   id="e-product"
                   value={editing.product}
                   onChange={(e) => setEditing({ ...editing, product: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label htmlFor="e-car_model">Model Kereta</Label>
+                <Input
+                  id="e-car_model"
+                  value={editing.car_model}
+                  onChange={(e) => setEditing({ ...editing, car_model: e.target.value })}
                 />
               </div>
               <DialogFooter>

@@ -147,7 +147,7 @@ export const listLeads = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("leads")
-      .select("id, name, phone, product, followup_status, created_at, followup_sequence_id")
+      .select("id, name, phone, product, car_model, followup_status, created_at, followup_sequence_id")
       .order("created_at", { ascending: false })
       .limit(200);
     if (error) throw new Error(error.message);
@@ -156,12 +156,13 @@ export const listLeads = createServerFn({ method: "GET" })
 
 export const createLead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { name: string; phone: string; product?: string; notes?: string }) =>
+  .inputValidator((d: { name: string; phone: string; product?: string; car_model?: string; notes?: string }) =>
     z
       .object({
         name: z.string().min(1).max(120),
         phone: z.string().min(6).max(30),
         product: z.string().max(120).optional().nullable(),
+        car_model: z.string().max(120).optional().nullable(),
         notes: z.string().max(2000).optional().nullable(),
       })
       .parse(d),
@@ -173,6 +174,7 @@ export const createLead = createServerFn({ method: "POST" })
         name: data.name,
         phone: data.phone,
         product: data.product ?? null,
+        car_model: data.car_model ?? null,
         notes: data.notes ?? null,
         created_by: context.userId,
       })
@@ -193,6 +195,7 @@ export const bulkImportLeads = createServerFn({ method: "POST" })
               name: z.string().min(1).max(120),
               phone: z.string().min(6).max(30),
               product: z.string().max(120).optional().nullable(),
+              car_model: z.string().max(120).optional().nullable(),
               notes: z.string().max(2000).optional().nullable(),
             }),
           )
@@ -206,6 +209,7 @@ export const bulkImportLeads = createServerFn({ method: "POST" })
       name: r.name,
       phone: r.phone,
       product: r.product ?? null,
+      car_model: r.car_model ?? null,
       notes: r.notes ?? null,
       created_by: context.userId,
     }));
@@ -237,13 +241,14 @@ export const updateLeadStatus = createServerFn({ method: "POST" })
 
 export const updateLead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { id: string; name?: string; phone?: string; product?: string | null }) =>
+  .inputValidator((d: { id: string; name?: string; phone?: string; product?: string | null; car_model?: string | null }) =>
     z
       .object({
         id: z.string().uuid(),
         name: z.string().min(1).max(120).optional(),
         phone: z.string().min(6).max(30).optional(),
         product: z.string().max(120).nullable().optional(),
+        car_model: z.string().max(120).nullable().optional(),
       })
       .parse(d),
   )

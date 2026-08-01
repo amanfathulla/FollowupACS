@@ -285,6 +285,7 @@ export type Database = {
       leads: {
         Row: {
           assigned_sender_id: string | null
+          car_model: string | null
           chatbot_paused: boolean
           created_at: string
           created_by: string | null
@@ -301,6 +302,7 @@ export type Database = {
         }
         Insert: {
           assigned_sender_id?: string | null
+          car_model?: string | null
           chatbot_paused?: boolean
           created_at?: string
           created_by?: string | null
@@ -317,6 +319,7 @@ export type Database = {
         }
         Update: {
           assigned_sender_id?: string | null
+          car_model?: string | null
           chatbot_paused?: boolean
           created_at?: string
           created_by?: string | null
