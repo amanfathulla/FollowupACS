@@ -752,6 +752,14 @@ function LeadsPage() {
                   onChange={(e) => setEditing({ ...editing, product: e.target.value })}
                 />
               </div>
+              <div>
+                <Label htmlFor="e-car_model">Model Kereta</Label>
+                <Input
+                  id="e-car_model"
+                  value={editing.car_model}
+                  onChange={(e) => setEditing({ ...editing, car_model: e.target.value })}
+                />
+              </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setEditing(null)}>
                   Batal
