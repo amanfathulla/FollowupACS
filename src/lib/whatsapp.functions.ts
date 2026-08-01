@@ -147,7 +147,7 @@ export const listLeads = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("leads")
-      .select("id, name, phone, product, followup_status, created_at, followup_sequence_id")
+      .select("id, name, phone, product, car_model, followup_status, created_at, followup_sequence_id")
       .order("created_at", { ascending: false })
       .limit(200);
     if (error) throw new Error(error.message);
