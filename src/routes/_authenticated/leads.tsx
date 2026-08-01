@@ -162,7 +162,7 @@ function LeadsPage() {
       qc.invalidateQueries({ queryKey: ["followups"] });
       qc.invalidateQueries({ queryKey: ["stats"] });
       setOpenLead(false);
-      setForm({ name: "", phone: "", product: "" });
+      setForm({ name: "", phone: "", product: "", car_model: "" });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal tambah lead"),
   });
