@@ -135,6 +135,8 @@ function LeadsPage() {
   const getSettingsFn = useServerFn(getSettings);
   const updateSettingsFn = useServerFn(updateSettings);
   const getMyRoleFn = useServerFn(getMyRole);
+  const listSendersFn = useServerFn(listSenders);
+
 
   const stats = useQuery({ queryKey: ["stats"], queryFn: () => todayStatsFn() });
   const leads = useQuery({ queryKey: ["leads"], queryFn: () => listLeadsFn() });
