@@ -180,13 +180,14 @@ function LeadsPage() {
         data: {
           name: payload.name,
           phone: payload.phone,
-          product: payload.product || null,
-          car_model: payload.car_model || null,
+          product: payload.product || undefined,
+          car_model: payload.car_model || undefined,
           lead_type: payload.lead_type,
           assigned_sender_id:
             payload.assigned_sender_id === "auto" ? null : payload.assigned_sender_id,
         },
       }),
+
     onSuccess: () => {
       toast.success("Lead ditambah — jadual followup dijana automatik");
       qc.invalidateQueries({ queryKey: ["leads"] });
