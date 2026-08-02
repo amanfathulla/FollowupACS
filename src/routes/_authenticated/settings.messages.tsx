@@ -56,13 +56,17 @@ function MessagesPage() {
   const me = useQuery({ queryKey: ["me"], queryFn: () => getMyRoleFn() });
   const isAdmin = me.data?.isAdmin ?? false;
 
+  const [category, setCategory] = useState<"prospect" | "customer">("prospect");
   const sequences = useQuery({ queryKey: ["sequences"], queryFn: () => listSequencesFn() });
-  const activeSequence = sequences.data?.[0];
+  const activeSequence = (sequences.data ?? []).find(
+    (s: any) => (s.category ?? "prospect") === category,
+  );
   const steps = useQuery({
     queryKey: ["steps", activeSequence?.id],
     queryFn: () => listStepsFn({ data: { sequenceId: activeSequence!.id } }),
     enabled: !!activeSequence?.id,
   });
+
 
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
   const [draftMessage, setDraftMessage] = useState("");
