@@ -406,6 +406,48 @@ function LeadsPage() {
                     onChange={(e) => setForm((f) => ({ ...f, car_model: e.target.value }))}
                   />
                 </div>
+                <div>
+                  <Label>Jenis lead</Label>
+                  <Select
+                    value={form.lead_type}
+                    onValueChange={(v) =>
+                      setForm((f) => ({ ...f, lead_type: v as "prospect" | "converted" }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="prospect">Lead PROSPEK (belum beli)</SelectItem>
+                      <SelectItem value="converted">Lead CONVERTED (sudah beli)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Sequence mesej harian dipilih automatik ikut jenis lead.
+                  </p>
+                </div>
+                <div>
+                  <Label>Sender WhatsApp</Label>
+                  <Select
+                    value={form.assigned_sender_id}
+                    onValueChange={(v) => setForm((f) => ({ ...f, assigned_sender_id: v }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">Automatik (agihan sistem)</SelectItem>
+                      {(senderOptions.data ?? [])
+                        .filter((s: any) => s.is_active)
+                        .map((s: any) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.label} — {s.phone_number}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <DialogFooter>
                   <Button type="submit" disabled={createMutation.isPending}>
                     Simpan
