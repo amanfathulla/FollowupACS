@@ -765,13 +765,16 @@ function LeadsPage() {
                     </td>
                   </tr>
                 ))}
-                {leads.data?.length === 0 && (
+                {(leads.data ?? []).filter(
+                  (l: any) => (l.lead_type ?? "prospect") === leadTypeFilter,
+                ).length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
-                      Belum ada lead. Klik "Tambah Lead" untuk mula.
+                    <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
+                      Belum ada lead dalam kategori ini.
                     </td>
                   </tr>
                 )}
+
               </tbody>
             </table>
           </Card>
