@@ -664,6 +664,10 @@ function LeadsPage() {
                                 phone: l.phone ?? "",
                                 product: l.product ?? "",
                                 car_model: l.car_model ?? "",
+                                lead_type: (l.lead_type ?? "prospect") as
+                                  | "prospect"
+                                  | "converted",
+
                               })
                             }
                           >
