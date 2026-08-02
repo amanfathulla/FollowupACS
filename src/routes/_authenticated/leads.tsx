@@ -265,8 +265,25 @@ function LeadsPage() {
   });
 
   const editLeadMutation = useMutation({
-    mutationFn: (v: { id: string; name: string; phone: string; product: string }) =>
-      updateLeadFn({ data: { id: v.id, name: v.name, phone: v.phone, product: v.product || null } }),
+    mutationFn: (v: {
+      id: string;
+      name: string;
+      phone: string;
+      product: string;
+      car_model: string;
+      lead_type: "prospect" | "converted";
+    }) =>
+      updateLeadFn({
+        data: {
+          id: v.id,
+          name: v.name,
+          phone: v.phone,
+          product: v.product || null,
+          car_model: v.car_model || null,
+          lead_type: v.lead_type,
+        },
+      }),
+
     onSuccess: () => {
       toast.success("Lead dikemaskini");
       qc.invalidateQueries({ queryKey: ["leads"] });
