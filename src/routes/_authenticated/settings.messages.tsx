@@ -181,13 +181,44 @@ function MessagesPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Borang Mesej Harian</h1>
-          <p className="text-sm text-muted-foreground">
-            Edit ayat mesej followup untuk setiap hari dalam sequence{" "}
-            <span className="font-medium text-foreground">{activeSequence?.name ?? "—"}</span>.
-          </p>
+        <div className="space-y-3">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Borang Mesej Harian</h1>
+            <p className="text-sm text-muted-foreground">
+              Edit ayat mesej followup untuk setiap hari dalam sequence{" "}
+              <span className="font-medium text-foreground">{activeSequence?.name ?? "—"}</span>.
+            </p>
+          </div>
+          <div className="inline-flex rounded-xl border p-1 bg-muted/30">
+            <button
+              onClick={() => {
+                setCategory("prospect");
+                setSelectedStepId(null);
+              }}
+              className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                category === "prospect"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Mesej Prospek (belum beli)
+            </button>
+            <button
+              onClick={() => {
+                setCategory("customer");
+                setSelectedStepId(null);
+              }}
+              className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                category === "customer"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Mesej Pelanggan (converted)
+            </button>
+          </div>
         </div>
+
         {isAdmin && (
           <Dialog open={openNew} onOpenChange={setOpenNew}>
             <DialogTrigger asChild>
