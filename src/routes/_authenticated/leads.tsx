@@ -889,6 +889,24 @@ function LeadsPage() {
                   onChange={(e) => setEditing({ ...editing, car_model: e.target.value })}
                 />
               </div>
+              <div>
+                <Label>Jenis lead</Label>
+                <Select
+                  value={editing.lead_type}
+                  onValueChange={(v) =>
+                    setEditing({ ...editing, lead_type: v as "prospect" | "converted" })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="prospect">Lead PROSPEK (belum beli)</SelectItem>
+                    <SelectItem value="converted">Lead CONVERTED (sudah beli)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setEditing(null)}>
                   Batal
