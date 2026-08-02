@@ -264,7 +264,7 @@ export const updateLeadStatus = createServerFn({ method: "POST" })
 
 export const updateLead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { id: string; name?: string; phone?: string; product?: string | null; car_model?: string | null }) =>
+  .inputValidator((d: { id: string; name?: string; phone?: string; product?: string | null; car_model?: string | null; lead_type?: "prospect" | "converted"; assigned_sender_id?: string | null }) =>
     z
       .object({
         id: z.string().uuid(),
@@ -272,9 +272,12 @@ export const updateLead = createServerFn({ method: "POST" })
         phone: z.string().min(6).max(30).optional(),
         product: z.string().max(120).nullable().optional(),
         car_model: z.string().max(120).nullable().optional(),
+        lead_type: leadTypeSchema.optional(),
+        assigned_sender_id: z.string().uuid().nullable().optional(),
       })
       .parse(d),
   )
+
   .handler(async ({ data, context }) => {
     const { id, ...patch } = data;
     const { error } = await context.supabase
