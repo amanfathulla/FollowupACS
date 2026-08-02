@@ -634,6 +634,31 @@ function LeadsPage() {
         </TabsContent>
 
         <TabsContent value="list">
+          <div className="mb-3 inline-flex rounded-xl border p-1 bg-muted/30">
+            {(
+              [
+                ["prospect", "Lead PROSPEK (belum beli)"],
+                ["converted", "Lead CONVERTED"],
+              ] as const
+            ).map(([val, label]) => {
+              const count = (leads.data ?? []).filter(
+                (l: any) => (l.lead_type ?? "prospect") === val,
+              ).length;
+              return (
+                <button
+                  key={val}
+                  onClick={() => setLeadTypeFilter(val)}
+                  className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                    leadTypeFilter === val
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {label} ({count})
+                </button>
+              );
+            })}
+          </div>
           <Card className="rounded-2xl overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-muted/50 text-muted-foreground text-xs uppercase">
@@ -642,18 +667,25 @@ function LeadsPage() {
                   <th className="text-left px-4 py-3">Telefon</th>
                   <th className="text-left px-4 py-3">Produk</th>
                   <th className="text-left px-4 py-3">Model Kereta</th>
+                  <th className="text-left px-4 py-3">Sender</th>
                   <th className="text-left px-4 py-3">Status</th>
                   <th className="text-left px-4 py-3">Tarikh</th>
                   <th className="text-right px-4 py-3">Aksi</th>
                 </tr>
               </thead>
               <tbody>
-                {(leads.data ?? []).map((l: any) => (
+                {(leads.data ?? [])
+                  .filter((l: any) => (l.lead_type ?? "prospect") === leadTypeFilter)
+                  .map((l: any) => (
                   <tr key={l.id} className="border-t border-border">
                     <td className="px-4 py-3 font-medium">{l.name}</td>
                     <td className="px-4 py-3 text-muted-foreground">{l.phone}</td>
                     <td className="px-4 py-3 text-muted-foreground">{l.product ?? "—"}</td>
                     <td className="px-4 py-3 text-muted-foreground">{l.car_model ?? "—"}</td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {l.whatsapp_senders?.label ?? "—"}
+                    </td>
+
                     <td className="px-4 py-3">
                       <Badge variant="outline" className={STATUS_COLOR[l.followup_status]}>
                         {l.followup_status}
