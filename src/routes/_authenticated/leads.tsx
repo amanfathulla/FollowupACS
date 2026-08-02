@@ -150,22 +150,61 @@ function LeadsPage() {
   const [importPreview, setImportPreview] = useState<
     Array<{ name: string; phone: string; product: string | null; car_model: string | null }> | null
   >(null);
-  const [form, setForm] = useState({ name: "", phone: "", product: "", car_model: "" });
-  const [editing, setEditing] = useState<{ id: string; name: string; phone: string; product: string; car_model: string } | null>(null);
+  const [form, setForm] = useState({
+    name: "",
+    phone: "",
+    product: "",
+    car_model: "",
+    lead_type: "prospect" as "prospect" | "converted",
+    assigned_sender_id: "auto" as string,
+  });
+  const [editing, setEditing] = useState<{
+    id: string;
+    name: string;
+    phone: string;
+    product: string;
+    car_model: string;
+    lead_type: "prospect" | "converted";
+  } | null>(null);
   const [selectedSenderId, setSelectedSenderId] = useState<string | null>(null);
+  const [leadTypeFilter, setLeadTypeFilter] = useState<"prospect" | "converted">("prospect");
+
+  const senderOptions = useQuery({
+    queryKey: ["senders", "options"],
+    queryFn: () => listSendersFn(),
+  });
 
   const createMutation = useMutation({
-    mutationFn: (payload: typeof form) => createLeadFn({ data: payload }),
+    mutationFn: (payload: typeof form) =>
+      createLeadFn({
+        data: {
+          name: payload.name,
+          phone: payload.phone,
+          product: payload.product || null,
+          car_model: payload.car_model || null,
+          lead_type: payload.lead_type,
+          assigned_sender_id:
+            payload.assigned_sender_id === "auto" ? null : payload.assigned_sender_id,
+        },
+      }),
     onSuccess: () => {
       toast.success("Lead ditambah — jadual followup dijana automatik");
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["followups"] });
       qc.invalidateQueries({ queryKey: ["stats"] });
       setOpenLead(false);
-      setForm({ name: "", phone: "", product: "", car_model: "" });
+      setForm({
+        name: "",
+        phone: "",
+        product: "",
+        car_model: "",
+        lead_type: "prospect",
+        assigned_sender_id: "auto",
+      });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal tambah lead"),
   });
+
 
   const bulkImportMutation = useMutation({
     mutationFn: (rows: Array<{ name: string; phone: string; product: string | null; car_model: string | null }>) =>
