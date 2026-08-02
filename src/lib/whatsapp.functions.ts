@@ -38,11 +38,12 @@ export const listSequences = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("followup_sequences")
-      .select("id, name, description, is_active, created_at")
+      .select("id, name, description, is_active, category, created_at")
       .order("created_at", { ascending: true });
     if (error) throw new Error(error.message);
     return data ?? [];
   });
+
 
 export const listSteps = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -147,25 +148,40 @@ export const listLeads = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("leads")
-      .select("id, name, phone, product, car_model, followup_status, created_at, followup_sequence_id")
+      .select(
+        "id, name, phone, product, car_model, lead_type, followup_status, created_at, followup_sequence_id, assigned_sender_id, whatsapp_senders(label, phone_number)",
+      )
       .order("created_at", { ascending: false })
-      .limit(200);
+      .limit(300);
     if (error) throw new Error(error.message);
     return data ?? [];
   });
 
+const leadTypeSchema = z.enum(["prospect", "converted"]);
+
 export const createLead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { name: string; phone: string; product?: string; car_model?: string; notes?: string }) =>
-    z
-      .object({
-        name: z.string().min(1).max(120),
-        phone: z.string().min(6).max(30),
-        product: z.string().max(120).optional().nullable(),
-        car_model: z.string().max(120).optional().nullable(),
-        notes: z.string().max(2000).optional().nullable(),
-      })
-      .parse(d),
+  .inputValidator(
+    (d: {
+      name: string;
+      phone: string;
+      product?: string;
+      car_model?: string;
+      notes?: string;
+      lead_type?: "prospect" | "converted";
+      assigned_sender_id?: string | null;
+    }) =>
+      z
+        .object({
+          name: z.string().min(1).max(120),
+          phone: z.string().min(6).max(30),
+          product: z.string().max(120).optional().nullable(),
+          car_model: z.string().max(120).optional().nullable(),
+          notes: z.string().max(2000).optional().nullable(),
+          lead_type: leadTypeSchema.optional(),
+          assigned_sender_id: z.string().uuid().nullable().optional(),
+        })
+        .parse(d),
   )
   .handler(async ({ data, context }) => {
     const { data: row, error } = await context.supabase
@@ -176,6 +192,8 @@ export const createLead = createServerFn({ method: "POST" })
         product: data.product ?? null,
         car_model: data.car_model ?? null,
         notes: data.notes ?? null,
+        lead_type: data.lead_type ?? "prospect",
+        assigned_sender_id: data.assigned_sender_id ?? null,
         created_by: context.userId,
       })
       .select("id")
@@ -189,6 +207,8 @@ export const bulkImportLeads = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) =>
     z
       .object({
+        lead_type: leadTypeSchema.optional(),
+        assigned_sender_id: z.string().uuid().nullable().optional(),
         rows: z
           .array(
             z.object({
@@ -211,6 +231,8 @@ export const bulkImportLeads = createServerFn({ method: "POST" })
       product: r.product ?? null,
       car_model: r.car_model ?? null,
       notes: r.notes ?? null,
+      lead_type: data.lead_type ?? "prospect",
+      assigned_sender_id: data.assigned_sender_id ?? null,
       created_by: context.userId,
     }));
     const { error, count } = await context.supabase
@@ -219,6 +241,7 @@ export const bulkImportLeads = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true, inserted: count ?? payload.length };
   });
+
 
 export const updateLeadStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -241,7 +264,7 @@ export const updateLeadStatus = createServerFn({ method: "POST" })
 
 export const updateLead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { id: string; name?: string; phone?: string; product?: string | null; car_model?: string | null }) =>
+  .inputValidator((d: { id: string; name?: string; phone?: string; product?: string | null; car_model?: string | null; lead_type?: "prospect" | "converted"; assigned_sender_id?: string | null }) =>
     z
       .object({
         id: z.string().uuid(),
@@ -249,9 +272,12 @@ export const updateLead = createServerFn({ method: "POST" })
         phone: z.string().min(6).max(30).optional(),
         product: z.string().max(120).nullable().optional(),
         car_model: z.string().max(120).nullable().optional(),
+        lead_type: leadTypeSchema.optional(),
+        assigned_sender_id: z.string().uuid().nullable().optional(),
       })
       .parse(d),
   )
+
   .handler(async ({ data, context }) => {
     const { id, ...patch } = data;
     const { error } = await context.supabase

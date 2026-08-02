@@ -76,6 +76,7 @@ export type Database = {
       }
       followup_sequences: {
         Row: {
+          category: string
           created_at: string
           description: string | null
           id: string
@@ -84,6 +85,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          category?: string
           created_at?: string
           description?: string | null
           id?: string
@@ -92,6 +94,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          category?: string
           created_at?: string
           description?: string | null
           id?: string
@@ -292,6 +295,7 @@ export type Database = {
           followup_sequence_id: string | null
           followup_status: string
           id: string
+          lead_type: string
           name: string
           notes: string | null
           phone: string
@@ -309,6 +313,7 @@ export type Database = {
           followup_sequence_id?: string | null
           followup_status?: string
           id?: string
+          lead_type?: string
           name: string
           notes?: string | null
           phone: string
@@ -326,6 +331,7 @@ export type Database = {
           followup_sequence_id?: string | null
           followup_status?: string
           id?: string
+          lead_type?: string
           name?: string
           notes?: string | null
           phone?: string

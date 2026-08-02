@@ -135,6 +135,8 @@ function LeadsPage() {
   const getSettingsFn = useServerFn(getSettings);
   const updateSettingsFn = useServerFn(updateSettings);
   const getMyRoleFn = useServerFn(getMyRole);
+  const listSendersFn = useServerFn(listSenders);
+
 
   const stats = useQuery({ queryKey: ["stats"], queryFn: () => todayStatsFn() });
   const leads = useQuery({ queryKey: ["leads"], queryFn: () => listLeadsFn() });
@@ -150,22 +152,62 @@ function LeadsPage() {
   const [importPreview, setImportPreview] = useState<
     Array<{ name: string; phone: string; product: string | null; car_model: string | null }> | null
   >(null);
-  const [form, setForm] = useState({ name: "", phone: "", product: "", car_model: "" });
-  const [editing, setEditing] = useState<{ id: string; name: string; phone: string; product: string; car_model: string } | null>(null);
+  const [form, setForm] = useState({
+    name: "",
+    phone: "",
+    product: "",
+    car_model: "",
+    lead_type: "prospect" as "prospect" | "converted",
+    assigned_sender_id: "auto" as string,
+  });
+  const [editing, setEditing] = useState<{
+    id: string;
+    name: string;
+    phone: string;
+    product: string;
+    car_model: string;
+    lead_type: "prospect" | "converted";
+  } | null>(null);
   const [selectedSenderId, setSelectedSenderId] = useState<string | null>(null);
+  const [leadTypeFilter, setLeadTypeFilter] = useState<"prospect" | "converted">("prospect");
+
+  const senderOptions = useQuery({
+    queryKey: ["senders", "options"],
+    queryFn: () => listSendersFn(),
+  });
 
   const createMutation = useMutation({
-    mutationFn: (payload: typeof form) => createLeadFn({ data: payload }),
+    mutationFn: (payload: typeof form) =>
+      createLeadFn({
+        data: {
+          name: payload.name,
+          phone: payload.phone,
+          product: payload.product || undefined,
+          car_model: payload.car_model || undefined,
+          lead_type: payload.lead_type,
+          assigned_sender_id:
+            payload.assigned_sender_id === "auto" ? null : payload.assigned_sender_id,
+        },
+      }),
+
     onSuccess: () => {
       toast.success("Lead ditambah — jadual followup dijana automatik");
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["followups"] });
       qc.invalidateQueries({ queryKey: ["stats"] });
       setOpenLead(false);
-      setForm({ name: "", phone: "", product: "", car_model: "" });
+      setForm({
+        name: "",
+        phone: "",
+        product: "",
+        car_model: "",
+        lead_type: "prospect",
+        assigned_sender_id: "auto",
+      });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal tambah lead"),
   });
+
 
   const bulkImportMutation = useMutation({
     mutationFn: (rows: Array<{ name: string; phone: string; product: string | null; car_model: string | null }>) =>
@@ -223,8 +265,25 @@ function LeadsPage() {
   });
 
   const editLeadMutation = useMutation({
-    mutationFn: (v: { id: string; name: string; phone: string; product: string }) =>
-      updateLeadFn({ data: { id: v.id, name: v.name, phone: v.phone, product: v.product || null } }),
+    mutationFn: (v: {
+      id: string;
+      name: string;
+      phone: string;
+      product: string;
+      car_model: string;
+      lead_type: "prospect" | "converted";
+    }) =>
+      updateLeadFn({
+        data: {
+          id: v.id,
+          name: v.name,
+          phone: v.phone,
+          product: v.product || null,
+          car_model: v.car_model || null,
+          lead_type: v.lead_type,
+        },
+      }),
+
     onSuccess: () => {
       toast.success("Lead dikemaskini");
       qc.invalidateQueries({ queryKey: ["leads"] });
@@ -364,6 +423,48 @@ function LeadsPage() {
                     onChange={(e) => setForm((f) => ({ ...f, car_model: e.target.value }))}
                   />
                 </div>
+                <div>
+                  <Label>Jenis lead</Label>
+                  <Select
+                    value={form.lead_type}
+                    onValueChange={(v) =>
+                      setForm((f) => ({ ...f, lead_type: v as "prospect" | "converted" }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="prospect">Lead PROSPEK (belum beli)</SelectItem>
+                      <SelectItem value="converted">Lead CONVERTED (sudah beli)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Sequence mesej harian dipilih automatik ikut jenis lead.
+                  </p>
+                </div>
+                <div>
+                  <Label>Sender WhatsApp</Label>
+                  <Select
+                    value={form.assigned_sender_id}
+                    onValueChange={(v) => setForm((f) => ({ ...f, assigned_sender_id: v }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">Automatik (agihan sistem)</SelectItem>
+                      {(senderOptions.data ?? [])
+                        .filter((s: any) => s.is_active)
+                        .map((s: any) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.label} — {s.phone_number}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
                 <DialogFooter>
                   <Button type="submit" disabled={createMutation.isPending}>
                     Simpan
@@ -550,6 +651,31 @@ function LeadsPage() {
         </TabsContent>
 
         <TabsContent value="list">
+          <div className="mb-3 inline-flex rounded-xl border p-1 bg-muted/30">
+            {(
+              [
+                ["prospect", "Lead PROSPEK (belum beli)"],
+                ["converted", "Lead CONVERTED"],
+              ] as const
+            ).map(([val, label]) => {
+              const count = (leads.data ?? []).filter(
+                (l: any) => (l.lead_type ?? "prospect") === val,
+              ).length;
+              return (
+                <button
+                  key={val}
+                  onClick={() => setLeadTypeFilter(val)}
+                  className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                    leadTypeFilter === val
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {label} ({count})
+                </button>
+              );
+            })}
+          </div>
           <Card className="rounded-2xl overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-muted/50 text-muted-foreground text-xs uppercase">
@@ -558,18 +684,25 @@ function LeadsPage() {
                   <th className="text-left px-4 py-3">Telefon</th>
                   <th className="text-left px-4 py-3">Produk</th>
                   <th className="text-left px-4 py-3">Model Kereta</th>
+                  <th className="text-left px-4 py-3">Sender</th>
                   <th className="text-left px-4 py-3">Status</th>
                   <th className="text-left px-4 py-3">Tarikh</th>
                   <th className="text-right px-4 py-3">Aksi</th>
                 </tr>
               </thead>
               <tbody>
-                {(leads.data ?? []).map((l: any) => (
+                {(leads.data ?? [])
+                  .filter((l: any) => (l.lead_type ?? "prospect") === leadTypeFilter)
+                  .map((l: any) => (
                   <tr key={l.id} className="border-t border-border">
                     <td className="px-4 py-3 font-medium">{l.name}</td>
                     <td className="px-4 py-3 text-muted-foreground">{l.phone}</td>
                     <td className="px-4 py-3 text-muted-foreground">{l.product ?? "—"}</td>
                     <td className="px-4 py-3 text-muted-foreground">{l.car_model ?? "—"}</td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {l.whatsapp_senders?.label ?? "—"}
+                    </td>
+
                     <td className="px-4 py-3">
                       <Badge variant="outline" className={STATUS_COLOR[l.followup_status]}>
                         {l.followup_status}
@@ -622,6 +755,10 @@ function LeadsPage() {
                                 phone: l.phone ?? "",
                                 product: l.product ?? "",
                                 car_model: l.car_model ?? "",
+                                lead_type: (l.lead_type ?? "prospect") as
+                                  | "prospect"
+                                  | "converted",
+
                               })
                             }
                           >
@@ -645,13 +782,16 @@ function LeadsPage() {
                     </td>
                   </tr>
                 ))}
-                {leads.data?.length === 0 && (
+                {(leads.data ?? []).filter(
+                  (l: any) => (l.lead_type ?? "prospect") === leadTypeFilter,
+                ).length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-8 text-center text-muted-foreground">
-                      Belum ada lead. Klik "Tambah Lead" untuk mula.
+                    <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
+                      Belum ada lead dalam kategori ini.
                     </td>
                   </tr>
                 )}
+
               </tbody>
             </table>
           </Card>
@@ -766,6 +906,24 @@ function LeadsPage() {
                   onChange={(e) => setEditing({ ...editing, car_model: e.target.value })}
                 />
               </div>
+              <div>
+                <Label>Jenis lead</Label>
+                <Select
+                  value={editing.lead_type}
+                  onValueChange={(v) =>
+                    setEditing({ ...editing, lead_type: v as "prospect" | "converted" })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="prospect">Lead PROSPEK (belum beli)</SelectItem>
+                    <SelectItem value="converted">Lead CONVERTED (sudah beli)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setEditing(null)}>
                   Batal
