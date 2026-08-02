@@ -38,11 +38,12 @@ export const listSequences = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("followup_sequences")
-      .select("id, name, description, is_active, created_at")
+      .select("id, name, description, is_active, category, created_at")
       .order("created_at", { ascending: true });
     if (error) throw new Error(error.message);
     return data ?? [];
   });
+
 
 export const listSteps = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
