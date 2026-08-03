@@ -30,6 +30,7 @@ import {
   getSchedulerInfo,
 } from "@/lib/whatsapp.functions";
 import { SendersPanel } from "@/components/whatsapp/senders-panel";
+import { SendWindowsPanel } from "@/components/whatsapp/send-windows-panel";
 
 export const Route = createFileRoute("/_authenticated/settings/whatsapp")({
   component: WhatsappSettingsPage,
@@ -315,6 +316,9 @@ function WhatsappSettingsPage() {
           berbeza dengan Asia/Kuala_Lumpur, cron mungkin tersasar — semak nilai di atas.
         </p>
       </Card>
+
+      {/* Waktu aktif / rehat */}
+      <SendWindowsPanel />
 
       {/* Senders list (multiple) */}
       <SendersPanel />

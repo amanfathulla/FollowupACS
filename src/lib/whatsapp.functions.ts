@@ -595,7 +595,7 @@ export const getSettings = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { data, error } = await context.supabase
       .from("whatsapp_settings")
-      .select("automation_enabled, sender_number, api_key_configured, updated_at")
+      .select("automation_enabled, sender_number, api_key_configured, send_timezone, updated_at")
       .eq("id", 1)
       .maybeSingle();
     if (error) throw new Error(error.message);
@@ -604,6 +604,7 @@ export const getSettings = createServerFn({ method: "GET" })
         automation_enabled: false,
         sender_number: null,
         api_key_configured: false,
+        send_timezone: "Asia/Kuala_Lumpur",
         updated_at: null,
       }
     );
@@ -611,11 +612,17 @@ export const getSettings = createServerFn({ method: "GET" })
 
 export const updateSettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { automation_enabled?: boolean; sender_number?: string | null }) =>
+  .inputValidator(
+    (d: {
+      automation_enabled?: boolean;
+      sender_number?: string | null;
+      send_timezone?: string;
+    }) =>
     z
       .object({
         automation_enabled: z.boolean().optional(),
         sender_number: z.string().min(6).max(30).nullable().optional(),
+        send_timezone: z.string().min(3).max(64).optional(),
       })
       .parse(d),
   )
@@ -624,6 +631,7 @@ export const updateSettings = createServerFn({ method: "POST" })
     const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (data.automation_enabled !== undefined) patch.automation_enabled = data.automation_enabled;
     if (data.sender_number !== undefined) patch.sender_number = data.sender_number;
+    if (data.send_timezone !== undefined) patch.send_timezone = data.send_timezone;
     const { error } = await context.supabase.from("whatsapp_settings").update(patch as any).eq("id", 1);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -850,4 +858,49 @@ export const listApiLogs = createServerFn({ method: "POST" })
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
     return rows ?? [];
+  });
+
+// ---------- Waktu aktif / rehat (send windows) ----------
+
+export const listSendWindows = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase
+      .from("whatsapp_send_windows")
+      .select("id, day_of_week, is_enabled, start_time, end_time")
+      .order("day_of_week");
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  });
+
+export const updateSendWindow = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (d: {
+      day_of_week: number;
+      is_enabled?: boolean;
+      start_time?: string;
+      end_time?: string;
+    }) =>
+      z
+        .object({
+          day_of_week: z.number().int().min(0).max(6),
+          is_enabled: z.boolean().optional(),
+          start_time: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+          end_time: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+        })
+        .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context);
+    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (data.is_enabled !== undefined) patch.is_enabled = data.is_enabled;
+    if (data.start_time !== undefined) patch.start_time = data.start_time;
+    if (data.end_time !== undefined) patch.end_time = data.end_time;
+    const { error } = await context.supabase
+      .from("whatsapp_send_windows")
+      .update(patch as any)
+      .eq("day_of_week", data.day_of_week);
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });

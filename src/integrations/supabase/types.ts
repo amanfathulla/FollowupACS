@@ -456,6 +456,36 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_send_windows: {
+        Row: {
+          created_at: string
+          day_of_week: number
+          end_time: string
+          id: string
+          is_enabled: boolean
+          start_time: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          day_of_week: number
+          end_time?: string
+          id?: string
+          is_enabled?: boolean
+          start_time?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          day_of_week?: number
+          end_time?: string
+          id?: string
+          is_enabled?: boolean
+          start_time?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       whatsapp_senders: {
         Row: {
           connection_status: string
@@ -509,6 +539,7 @@ export type Database = {
           api_key_configured: boolean
           automation_enabled: boolean
           id: number
+          send_timezone: string
           sender_number: string | null
           updated_at: string
         }
@@ -516,6 +547,7 @@ export type Database = {
           api_key_configured?: boolean
           automation_enabled?: boolean
           id?: number
+          send_timezone?: string
           sender_number?: string | null
           updated_at?: string
         }
@@ -523,6 +555,7 @@ export type Database = {
           api_key_configured?: boolean
           automation_enabled?: boolean
           id?: number
+          send_timezone?: string
           sender_number?: string | null
           updated_at?: string
         }

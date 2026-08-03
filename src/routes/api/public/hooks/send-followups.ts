@@ -40,7 +40,7 @@ export const Route = createFileRoute("/api/public/hooks/send-followups")({
 
         const { data: settings } = await supabaseAdmin
           .from("whatsapp_settings")
-          .select("automation_enabled")
+          .select("automation_enabled, send_timezone")
           .eq("id", 1)
           .maybeSingle();
         if (!settings?.automation_enabled) {
@@ -48,6 +48,48 @@ export const Route = createFileRoute("/api/public/hooks/send-followups")({
             JSON.stringify({ ok: true, skipped: "automation disabled", sent: 0, failed: 0 }),
             { status: 200, headers: jsonHeaders },
           );
+        }
+
+        // Waktu aktif / rehat: hanya hantar dalam window hari tersebut.
+        const tz = (settings as any)?.send_timezone || "Asia/Kuala_Lumpur";
+        const parts = new Intl.DateTimeFormat("en-US", {
+          timeZone: tz,
+          weekday: "short",
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        }).formatToParts(new Date());
+        const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+        const dayIndex = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(get("weekday"));
+        const minutesNow = Number(get("hour")) * 60 + Number(get("minute"));
+        const { data: windowRow } = await supabaseAdmin
+          .from("whatsapp_send_windows")
+          .select("is_enabled, start_time, end_time")
+          .eq("day_of_week", dayIndex)
+          .maybeSingle();
+        if (windowRow) {
+          const toMin = (t: string) => {
+            const [h, m] = String(t).split(":");
+            return Number(h) * 60 + Number(m);
+          };
+          const startMin = toMin(windowRow.start_time as string);
+          const endMin = toMin(windowRow.end_time as string);
+          const inWindow =
+            startMin <= endMin
+              ? minutesNow >= startMin && minutesNow < endMin
+              : minutesNow >= startMin || minutesNow < endMin;
+          if (!windowRow.is_enabled || !inWindow) {
+            return new Response(
+              JSON.stringify({
+                ok: true,
+                skipped: "outside active hours",
+                timezone: tz,
+                sent: 0,
+                failed: 0,
+              }),
+              { status: 200, headers: jsonHeaders },
+            );
+          }
         }
 
         const creds = await loadCredentials();

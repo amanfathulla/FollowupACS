@@ -571,6 +571,61 @@ function LeadsPage() {
         </div>
       </div>
 
+      {/* Kategori Lead — card besar berwarna */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {(
+          [
+            {
+              val: "prospect" as const,
+              label: "Lead PROSPEK",
+              hint: "Belum beli — dalam followup",
+              icon: UserPlus,
+              wrap: "bg-info text-info-foreground",
+            },
+            {
+              val: "converted" as const,
+              label: "Lead CONVERTED",
+              hint: "Dah beli — followup pelanggan",
+              icon: CheckCircle2,
+              wrap: "bg-success text-success-foreground",
+            },
+          ]
+        ).map((c) => {
+          const rows = (leads.data ?? []).filter(
+            (l: any) => (l.lead_type ?? "prospect") === c.val,
+          );
+          const last30 = rows.filter(
+            (l: any) => new Date(l.created_at).getTime() > Date.now() - 30 * 86_400_000,
+          ).length;
+          const Icon = c.icon;
+          const active = leadTypeFilter === c.val;
+          return (
+            <button
+              key={c.val}
+              type="button"
+              onClick={() => setLeadTypeFilter(c.val)}
+              className={`text-left rounded-3xl p-6 transition-all ${c.wrap} ${
+                active ? "ring-4 ring-ring/40 shadow-lg" : "opacity-90 hover:opacity-100"
+              }`}
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <div className="text-sm font-medium opacity-90">{c.label}</div>
+                  <div className="mt-2 text-5xl font-semibold tracking-tight">
+                    {rows.length}
+                  </div>
+                  <div className="mt-2 text-xs opacity-80">{c.hint}</div>
+                </div>
+                <div className="w-14 h-14 rounded-2xl bg-background/20 flex items-center justify-center">
+                  <Icon className="w-7 h-7" />
+                </div>
+              </div>
+              <div className="mt-4 text-xs opacity-90">+{last30} dalam 30 hari lepas</div>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
         <StatCard
