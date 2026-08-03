@@ -17,6 +17,7 @@ import { Route as AuthenticatedLeadsRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedSettingsWhatsappRouteImport } from './routes/_authenticated/settings.whatsapp'
 import { Route as AuthenticatedSettingsMessagesRouteImport } from './routes/_authenticated/settings.messages'
 import { Route as AuthenticatedSettingsChatbotRouteImport } from './routes/_authenticated/settings.chatbot'
+import { Route as AuthenticatedSettingsAccountRouteImport } from './routes/_authenticated/settings.account'
 import { Route as ApiPublicHooksWhatsappWebhookRouteImport } from './routes/api/public/hooks/whatsapp-webhook'
 import { Route as ApiPublicHooksSendFollowupsRouteImport } from './routes/api/public/hooks/send-followups'
 import { Route as ApiPublicHooksCheckSenderStatusRouteImport } from './routes/api/public/hooks/check-sender-status'
@@ -63,6 +64,12 @@ const AuthenticatedSettingsChatbotRoute =
     path: '/settings/chatbot',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedSettingsAccountRoute =
+  AuthenticatedSettingsAccountRouteImport.update({
+    id: '/settings/account',
+    path: '/settings/account',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const ApiPublicHooksWhatsappWebhookRoute =
   ApiPublicHooksWhatsappWebhookRouteImport.update({
     id: '/api/public/hooks/whatsapp-webhook',
@@ -87,6 +94,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/leads': typeof AuthenticatedLeadsRoute
   '/livechat': typeof AuthenticatedLivechatRoute
+  '/settings/account': typeof AuthenticatedSettingsAccountRoute
   '/settings/chatbot': typeof AuthenticatedSettingsChatbotRoute
   '/settings/messages': typeof AuthenticatedSettingsMessagesRoute
   '/settings/whatsapp': typeof AuthenticatedSettingsWhatsappRoute
@@ -99,6 +107,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/leads': typeof AuthenticatedLeadsRoute
   '/livechat': typeof AuthenticatedLivechatRoute
+  '/settings/account': typeof AuthenticatedSettingsAccountRoute
   '/settings/chatbot': typeof AuthenticatedSettingsChatbotRoute
   '/settings/messages': typeof AuthenticatedSettingsMessagesRoute
   '/settings/whatsapp': typeof AuthenticatedSettingsWhatsappRoute
@@ -113,6 +122,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/leads': typeof AuthenticatedLeadsRoute
   '/_authenticated/livechat': typeof AuthenticatedLivechatRoute
+  '/_authenticated/settings/account': typeof AuthenticatedSettingsAccountRoute
   '/_authenticated/settings/chatbot': typeof AuthenticatedSettingsChatbotRoute
   '/_authenticated/settings/messages': typeof AuthenticatedSettingsMessagesRoute
   '/_authenticated/settings/whatsapp': typeof AuthenticatedSettingsWhatsappRoute
@@ -127,6 +137,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/leads'
     | '/livechat'
+    | '/settings/account'
     | '/settings/chatbot'
     | '/settings/messages'
     | '/settings/whatsapp'
@@ -139,6 +150,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/leads'
     | '/livechat'
+    | '/settings/account'
     | '/settings/chatbot'
     | '/settings/messages'
     | '/settings/whatsapp'
@@ -152,6 +164,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/leads'
     | '/_authenticated/livechat'
+    | '/_authenticated/settings/account'
     | '/_authenticated/settings/chatbot'
     | '/_authenticated/settings/messages'
     | '/_authenticated/settings/whatsapp'
@@ -227,6 +240,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsChatbotRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/settings/account': {
+      id: '/_authenticated/settings/account'
+      path: '/settings/account'
+      fullPath: '/settings/account'
+      preLoaderRoute: typeof AuthenticatedSettingsAccountRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/public/hooks/whatsapp-webhook': {
       id: '/api/public/hooks/whatsapp-webhook'
       path: '/api/public/hooks/whatsapp-webhook'
@@ -254,6 +274,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedLeadsRoute: typeof AuthenticatedLeadsRoute
   AuthenticatedLivechatRoute: typeof AuthenticatedLivechatRoute
+  AuthenticatedSettingsAccountRoute: typeof AuthenticatedSettingsAccountRoute
   AuthenticatedSettingsChatbotRoute: typeof AuthenticatedSettingsChatbotRoute
   AuthenticatedSettingsMessagesRoute: typeof AuthenticatedSettingsMessagesRoute
   AuthenticatedSettingsWhatsappRoute: typeof AuthenticatedSettingsWhatsappRoute
@@ -262,6 +283,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedLeadsRoute: AuthenticatedLeadsRoute,
   AuthenticatedLivechatRoute: AuthenticatedLivechatRoute,
+  AuthenticatedSettingsAccountRoute: AuthenticatedSettingsAccountRoute,
   AuthenticatedSettingsChatbotRoute: AuthenticatedSettingsChatbotRoute,
   AuthenticatedSettingsMessagesRoute: AuthenticatedSettingsMessagesRoute,
   AuthenticatedSettingsWhatsappRoute: AuthenticatedSettingsWhatsappRoute,
