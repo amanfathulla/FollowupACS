@@ -3,7 +3,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Plus, Save, Trash2, MessageCircle, Upload, ImageIcon, X } from "lucide-react";
+import {
+  Plus,
+  Save,
+  Trash2,
+  MessageCircle,
+  MessagesSquare,
+  Upload,
+  ImageIcon,
+  X,
+} from "lucide-react";
+
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
