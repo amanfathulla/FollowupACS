@@ -109,11 +109,11 @@ export function SendWindowsPanel() {
         {rows.map((w) => (
           <div
             key={w.day_of_week}
-            className={`rounded-xl border p-4 flex items-center gap-4 ${
+            className={`rounded-xl border p-4 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 sm:flex sm:gap-4 ${
               w.is_enabled ? "" : "bg-muted/40"
             }`}
           >
-            <div className="w-24 shrink-0">
+            <div className="min-w-0 sm:w-24 sm:shrink-0">
               <div className="text-sm font-medium">{DAY_LABEL[w.day_of_week]}</div>
               {w.is_enabled ? (
                 <Badge
@@ -129,7 +129,16 @@ export function SendWindowsPanel() {
               )}
             </div>
 
-            <div className="flex items-center gap-2 flex-1">
+            <Switch
+              checked={w.is_enabled}
+              disabled={!isAdmin}
+              className="shrink-0 sm:order-3"
+              onCheckedChange={(v) =>
+                mutation.mutate({ day_of_week: w.day_of_week, is_enabled: v })
+              }
+            />
+
+            <div className="col-span-2 flex items-center gap-2 sm:col-span-1 sm:flex-1 sm:order-2">
               <Input
                 type="time"
                 value={String(w.start_time).slice(0, 5)}
@@ -137,7 +146,7 @@ export function SendWindowsPanel() {
                 onChange={(e) =>
                   mutation.mutate({ day_of_week: w.day_of_week, start_time: e.target.value })
                 }
-                className="w-[120px]"
+                className="w-full sm:w-[120px]"
               />
               <span className="text-muted-foreground text-sm">—</span>
               <Input
@@ -147,20 +156,13 @@ export function SendWindowsPanel() {
                 onChange={(e) =>
                   mutation.mutate({ day_of_week: w.day_of_week, end_time: e.target.value })
                 }
-                className="w-[120px]"
+                className="w-full sm:w-[120px]"
               />
             </div>
-
-            <Switch
-              checked={w.is_enabled}
-              disabled={!isAdmin}
-              onCheckedChange={(v) =>
-                mutation.mutate({ day_of_week: w.day_of_week, is_enabled: v })
-              }
-            />
           </div>
         ))}
       </div>
+
 
       <p className="text-xs text-muted-foreground">
         Followup yang jatuh luar waktu aktif tidak dibuang — ia kekal pending dan akan dihantar
