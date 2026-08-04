@@ -3,7 +3,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Plus, Save, Trash2, MessageCircle, Upload, ImageIcon, X } from "lucide-react";
+import {
+  Plus,
+  Save,
+  Trash2,
+  MessageCircle,
+  MessagesSquare,
+  Upload,
+  ImageIcon,
+  X,
+} from "lucide-react";
+
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -180,51 +190,22 @@ function MessagesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div className="space-y-3">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Borang Mesej Harian</h1>
-            <p className="text-sm text-muted-foreground">
-              Edit ayat mesej followup untuk setiap hari dalam sequence{" "}
-              <span className="font-medium text-foreground">{activeSequence?.name ?? "—"}</span>.
-            </p>
-          </div>
-          <div className="inline-flex rounded-xl border p-1 bg-muted/30">
-            <button
-              onClick={() => {
-                setCategory("prospect");
-                setSelectedStepId(null);
-              }}
-              className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
-                category === "prospect"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Mesej Prospek (belum beli)
-            </button>
-            <button
-              onClick={() => {
-                setCategory("customer");
-                setSelectedStepId(null);
-              }}
-              className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
-                category === "customer"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Mesej Pelanggan (converted)
-            </button>
-          </div>
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 sm:flex sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="truncate text-xl font-semibold tracking-tight sm:text-2xl">
+            Borang Mesej Harian
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Susun ayat followup ikut hari untuk setiap kategori lead.
+          </p>
         </div>
 
         {isAdmin && (
           <Dialog open={openNew} onOpenChange={setOpenNew}>
             <DialogTrigger asChild>
-              <Button disabled={!activeSequence}>
-                <Plus className="w-4 h-4 mr-2" />
-                Tambah hari
+              <Button disabled={!activeSequence} className="shrink-0">
+                <Plus className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Tambah hari</span>
               </Button>
             </DialogTrigger>
             <DialogContent>
@@ -267,23 +248,91 @@ function MessagesPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6">
-        {/* Sidebar */}
-        <Card className="p-3 rounded-2xl h-fit">
-          <div className="px-2 py-2 text-xs text-muted-foreground uppercase tracking-wide">
-            Senarai hari
+      {/* Category cards */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {(
+          [
+            {
+              key: "prospect" as const,
+              title: "Mesej PROSPEK",
+              sub: "Lead belum beli — kitaran memujuk",
+              icon: MessageCircle,
+              bg: "bg-info text-info-foreground",
+            },
+            {
+              key: "customer" as const,
+              title: "Mesej PELANGGAN",
+              sub: "Lead dah beli — kitaran selepas jualan",
+              icon: MessagesSquare,
+              bg: "bg-whatsapp text-whatsapp-foreground",
+            },
+          ] as const
+        ).map((c) => {
+          const seq = (sequences.data ?? []).find(
+            (s: any) => (s.category ?? "prospect") === c.key,
+          );
+          const count = c.key === category ? (steps.data?.length ?? 0) : null;
+          const active = category === c.key;
+          const Icon = c.icon;
+          return (
+            <button
+              key={c.key}
+              onClick={() => {
+                setCategory(c.key);
+                setSelectedStepId(null);
+              }}
+              className={`relative overflow-hidden rounded-2xl p-5 text-left transition-all ${c.bg} ${
+                active
+                  ? "ring-4 ring-ring/40 shadow-lg"
+                  : "opacity-80 hover:opacity-100 hover:shadow-md"
+              }`}
+            >
+              <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+                <div className="min-w-0">
+                  <div className="text-sm font-medium opacity-90">{c.title}</div>
+                  <div className="mt-1 text-3xl font-bold leading-none">
+                    {count === null ? "—" : count}
+                    <span className="ml-1 text-sm font-medium opacity-80">hari</span>
+                  </div>
+                  <div className="mt-2 truncate text-xs opacity-85">{c.sub}</div>
+                  <div className="mt-1 truncate text-xs opacity-70">
+                    {seq?.name ?? "Sequence belum ada"}
+                  </div>
+                </div>
+                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white/20">
+                  <Icon className="h-5 w-5" />
+                </div>
+              </div>
+              {active && (
+                <Badge className="mt-3 border-0 bg-white/20 text-current">Sedang dipilih</Badge>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[280px_1fr] lg:gap-6">
+        {/* Day list */}
+        <Card className="h-fit overflow-hidden rounded-2xl p-0">
+          <div className="flex items-center justify-between gap-2 border-b bg-muted/50 px-4 py-3">
+            <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Senarai hari
+            </div>
+            <Badge variant="outline" className="font-mono">
+              {steps.data?.length ?? 0}
+            </Badge>
           </div>
-          <div className="space-y-1">
+          <div className="max-h-[420px] space-y-1 overflow-y-auto p-3 lg:max-h-[560px]">
             {(steps.data ?? []).map((s: any) => {
               const active = selectedStepId === s.id;
               return (
                 <button
                   key={s.id}
                   onClick={() => setSelectedStepId(s.id)}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-left transition-colors ${
+                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${
                     active
-                      ? "bg-primary text-primary-foreground"
-                      : "hover:bg-muted text-foreground/80"
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-foreground/80 hover:bg-muted"
                   }`}
                 >
                   <Badge
@@ -292,16 +341,16 @@ function MessagesPage() {
                   >
                     D{s.day_offset}
                   </Badge>
-                  <span className="truncate text-xs opacity-80 flex-1">
-                    {s.message_template.slice(0, 24)}
-                    {s.message_template.length > 24 ? "…" : ""}
+                  <span className="min-w-0 flex-1 truncate text-xs opacity-85">
+                    {s.message_template.slice(0, 30)}
+                    {s.message_template.length > 30 ? "…" : ""}
                   </span>
-                  {s.media_type && <ImageIcon className="w-3 h-3 opacity-70" />}
+                  {s.media_type && <ImageIcon className="h-3 w-3 shrink-0 opacity-70" />}
                 </button>
               );
             })}
             {steps.data && steps.data.length === 0 && (
-              <div className="text-xs text-muted-foreground text-center py-6">
+              <div className="py-8 text-center text-xs text-muted-foreground">
                 Belum ada langkah.
               </div>
             )}
@@ -309,20 +358,24 @@ function MessagesPage() {
         </Card>
 
         {/* Editor */}
-        <Card className="p-6 rounded-2xl space-y-4">
+        <Card className="overflow-hidden rounded-2xl p-0">
           {selectedStep ? (
             <>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center">
-                  <MessageCircle className="w-5 h-5" />
+              <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3 border-b bg-gradient-to-r from-primary/10 to-transparent px-4 py-4 sm:px-6">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground">
+                  <MessageCircle className="h-5 w-5" />
                 </div>
-                <div>
-                  <div className="font-medium">Edit mesej — D{selectedStep.day_offset}</div>
-                  <div className="text-xs text-muted-foreground">
+                <div className="min-w-0">
+                  <div className="truncate font-medium">
+                    Edit mesej — D{selectedStep.day_offset}
+                  </div>
+                  <div className="truncate text-xs text-muted-foreground">
                     Placeholder: <code>{"{{nama}}"}</code>, <code>{"{{produk}}"}</code>
                   </div>
                 </div>
               </div>
+              <div className="space-y-4 p-4 sm:p-6">
+
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <div>
@@ -471,11 +524,13 @@ function MessagesPage() {
                   </Button>
                 )}
               </div>
+              </div>
             </>
           ) : (
-            <div className="text-sm text-muted-foreground text-center py-12">
-              Pilih hari di sebelah kiri untuk edit ayat mesej.
+            <div className="p-10 text-center text-sm text-muted-foreground">
+              Pilih hari di senarai untuk edit ayat mesej.
             </div>
+
           )}
         </Card>
       </div>
