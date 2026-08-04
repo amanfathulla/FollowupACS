@@ -514,11 +514,13 @@ function MessagesPage() {
                   </Button>
                 )}
               </div>
+              </div>
             </>
           ) : (
-            <div className="text-sm text-muted-foreground text-center py-12">
-              Pilih hari di sebelah kiri untuk edit ayat mesej.
+            <div className="p-10 text-center text-sm text-muted-foreground">
+              Pilih hari di senarai untuk edit ayat mesej.
             </div>
+
           )}
         </Card>
       </div>
