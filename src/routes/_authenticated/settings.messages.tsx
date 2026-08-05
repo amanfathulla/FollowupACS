@@ -390,9 +390,24 @@ function MessagesPage() {
                   />
                 </div>
                 <div className="md:col-span-3">
-                  <Label>Placeholder tersedia</Label>
-                  <Input readOnly value="{{nama}}, {{produk}}" className="bg-muted/40" />
+                  <Label>Placeholder tersedia (ikut medan database)</Label>
+                  <div className="mt-1 flex flex-wrap gap-2 rounded-xl border bg-muted/20 p-3">
+                    {MESSAGE_PLACEHOLDERS.map((p) => (
+                      <button
+                        key={p.token}
+                        type="button"
+                        disabled={!isAdmin}
+                        onClick={() => insertPlaceholder(p.token)}
+                        title={`${p.label} · ${p.column} · contoh: ${p.example}`}
+                        className="rounded-lg border bg-card px-2 py-1 text-left text-[11px] transition hover:border-primary/50 hover:bg-primary/5 disabled:opacity-50"
+                      >
+                        <span className="font-mono">{p.token}</span>
+                        <span className="ml-1 text-muted-foreground">{p.label}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
+
               </div>
 
               <div>
