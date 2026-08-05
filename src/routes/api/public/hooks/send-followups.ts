@@ -164,9 +164,14 @@ export const Route = createFileRoute("/api/public/hooks/send-followups")({
             name: string;
             phone: string;
             product: string | null;
+            car_model: string | null;
+            whatsapp_name: string | null;
+            notes: string | null;
+            lead_type: string | null;
             followup_status: string;
             assigned_sender_id: string | null;
           };
+
           const step = row.followup_steps as {
             message_template: string;
             media_type: string | null;
