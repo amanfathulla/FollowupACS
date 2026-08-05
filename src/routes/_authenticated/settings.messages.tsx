@@ -370,8 +370,9 @@ function MessagesPage() {
                     Edit mesej — D{selectedStep.day_offset}
                   </div>
                   <div className="truncate text-xs text-muted-foreground">
-                    Placeholder: <code>{"{{nama}}"}</code>, <code>{"{{produk}}"}</code>
+                    Klik placeholder di bawah untuk masukkan ke dalam ayat
                   </div>
+
                 </div>
               </div>
               <div className="space-y-4 p-4 sm:p-6">
