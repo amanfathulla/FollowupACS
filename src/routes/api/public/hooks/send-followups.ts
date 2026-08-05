@@ -140,12 +140,13 @@ export const Route = createFileRoute("/api/public/hooks/send-followups")({
         const { data: due, error } = await supabaseAdmin
           .from("lead_followups")
           .select(
-            "id, lead_id, day_offset, leads!inner(name, phone, product, followup_status, assigned_sender_id), followup_steps!inner(message_template, media_type, media_url)",
+            "id, lead_id, day_offset, leads!inner(name, phone, product, car_model, whatsapp_name, notes, lead_type, followup_status, assigned_sender_id), followup_steps!inner(message_template, media_type, media_url)",
           )
           .eq("status", "pending")
           .lte("scheduled_at", nowIso)
           .order("scheduled_at", { ascending: true })
           .limit(100);
+
         if (error) {
           return new Response(JSON.stringify({ error: error.message }), {
             status: 500,
