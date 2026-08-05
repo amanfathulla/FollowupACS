@@ -89,6 +89,25 @@ function MessagesPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const messageRef = useRef<HTMLTextAreaElement | null>(null);
+
+  function insertPlaceholder(token: string) {
+    const el = messageRef.current;
+    if (!el) {
+      setDraftMessage((m) => m + token);
+      return;
+    }
+    const start = el.selectionStart ?? el.value.length;
+    const end = el.selectionEnd ?? start;
+    const next = el.value.slice(0, start) + token + el.value.slice(end);
+    setDraftMessage(next);
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(start + token.length, start + token.length);
+    });
+  }
+
+
 
   useEffect(() => {
     if (!steps.data || steps.data.length === 0) {
