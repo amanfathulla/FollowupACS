@@ -37,6 +37,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { MESSAGE_PLACEHOLDERS } from "@/lib/placeholders";
+
 
 import {
   listSequences,
@@ -87,6 +89,25 @@ function MessagesPage() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const messageRef = useRef<HTMLTextAreaElement | null>(null);
+
+  function insertPlaceholder(token: string) {
+    const el = messageRef.current;
+    if (!el) {
+      setDraftMessage((m) => m + token);
+      return;
+    }
+    const start = el.selectionStart ?? el.value.length;
+    const end = el.selectionEnd ?? start;
+    const next = el.value.slice(0, start) + token + el.value.slice(end);
+    setDraftMessage(next);
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(start + token.length, start + token.length);
+    });
+  }
+
+
 
   useEffect(() => {
     if (!steps.data || steps.data.length === 0) {
@@ -370,8 +391,9 @@ function MessagesPage() {
                     Edit mesej — D{selectedStep.day_offset}
                   </div>
                   <div className="truncate text-xs text-muted-foreground">
-                    Placeholder: <code>{"{{nama}}"}</code>, <code>{"{{produk}}"}</code>
+                    Klik placeholder di bawah untuk masukkan ke dalam ayat
                   </div>
+
                 </div>
               </div>
               <div className="space-y-4 p-4 sm:p-6">
@@ -389,9 +411,24 @@ function MessagesPage() {
                   />
                 </div>
                 <div className="md:col-span-3">
-                  <Label>Placeholder tersedia</Label>
-                  <Input readOnly value="{{nama}}, {{produk}}" className="bg-muted/40" />
+                  <Label>Placeholder tersedia (ikut medan database)</Label>
+                  <div className="mt-1 flex flex-wrap gap-2 rounded-xl border bg-muted/20 p-3">
+                    {MESSAGE_PLACEHOLDERS.map((p) => (
+                      <button
+                        key={p.token}
+                        type="button"
+                        disabled={!isAdmin}
+                        onClick={() => insertPlaceholder(p.token)}
+                        title={`${p.label} · ${p.column} · contoh: ${p.example}`}
+                        className="rounded-lg border bg-card px-2 py-1 text-left text-[11px] transition hover:border-primary/50 hover:bg-primary/5 disabled:opacity-50"
+                      >
+                        <span className="font-mono">{p.token}</span>
+                        <span className="ml-1 text-muted-foreground">{p.label}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
+
               </div>
 
               <div>
@@ -497,11 +534,13 @@ function MessagesPage() {
               <div>
                 <Label>{messageMode === "media" ? "Caption (opsyenal)" : "Ayat mesej"}</Label>
                 <Textarea
+                  ref={messageRef}
                   rows={8}
                   value={draftMessage}
                   onChange={(e) => setDraftMessage(e.target.value)}
                   disabled={!isAdmin}
                 />
+
               </div>
 
               <div className="flex gap-2">

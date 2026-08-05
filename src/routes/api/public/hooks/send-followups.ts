@@ -140,12 +140,13 @@ export const Route = createFileRoute("/api/public/hooks/send-followups")({
         const { data: due, error } = await supabaseAdmin
           .from("lead_followups")
           .select(
-            "id, lead_id, day_offset, leads!inner(name, phone, product, followup_status, assigned_sender_id), followup_steps!inner(message_template, media_type, media_url)",
+            "id, lead_id, day_offset, leads!inner(name, phone, product, car_model, whatsapp_name, notes, lead_type, followup_status, assigned_sender_id), followup_steps!inner(message_template, media_type, media_url)",
           )
           .eq("status", "pending")
           .lte("scheduled_at", nowIso)
           .order("scheduled_at", { ascending: true })
           .limit(100);
+
         if (error) {
           return new Response(JSON.stringify({ error: error.message }), {
             status: 500,
@@ -163,9 +164,14 @@ export const Route = createFileRoute("/api/public/hooks/send-followups")({
             name: string;
             phone: string;
             product: string | null;
+            car_model: string | null;
+            whatsapp_name: string | null;
+            notes: string | null;
+            lead_type: string | null;
             followup_status: string;
             assigned_sender_id: string | null;
           };
+
           const step = row.followup_steps as {
             message_template: string;
             media_type: string | null;
@@ -210,8 +216,14 @@ export const Route = createFileRoute("/api/public/hooks/send-followups")({
 
           const message = renderTemplate(step.message_template ?? "", {
             nama: lead.name,
+            telefon: lead.phone,
             produk: lead.product ?? "",
+            model_kereta: lead.car_model ?? "",
+            nama_whatsapp: lead.whatsapp_name ?? "",
+            nota: lead.notes ?? "",
+            jenis_lead: lead.lead_type ?? "",
           });
+
 
           let result;
           if (step.media_type && step.media_url) {

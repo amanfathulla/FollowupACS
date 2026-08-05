@@ -838,27 +838,40 @@ export const listSendersLite = createServerFn({ method: "GET" })
 
 export const listApiLogs = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { onlyFailed?: boolean; limit?: number }) =>
+  .inputValidator((d: { onlyFailed?: boolean; limit?: number; page?: number }) =>
     z
       .object({
         onlyFailed: z.boolean().optional(),
         limit: z.number().int().min(1).max(200).optional(),
+        page: z.number().int().min(1).max(10).optional(),
       })
       .parse(d ?? {}),
   )
   .handler(async ({ data, context }) => {
+    const pageSize = data.limit ?? 10;
+    const page = data.page ?? 1;
+    const from = (page - 1) * pageSize;
     let q = context.supabase
       .from("whatsapp_api_logs")
       .select(
         "id, endpoint, method, phone, sender, response_status, response_body, ok, error_message, duration_ms, created_at",
+        { count: "exact" },
       )
       .order("created_at", { ascending: false })
-      .limit(data.limit ?? 50);
+      .range(from, from + pageSize - 1);
     if (data.onlyFailed) q = q.eq("ok", false);
-    const { data: rows, error } = await q;
+    const { data: rows, error, count } = await q;
     if (error) throw new Error(error.message);
-    return rows ?? [];
+    const total = count ?? 0;
+    return {
+      rows: rows ?? [],
+      total,
+      page,
+      pageSize,
+      totalPages: Math.min(10, Math.max(1, Math.ceil(total / pageSize))),
+    };
   });
+
 
 // ---------- Waktu aktif / rehat (send windows) ----------
 
