@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -49,19 +49,8 @@ function AuthPage() {
     toast.success("Akaun berjaya dicipta! Sila log masuk.");
   }
 
-  async function handleGoogle() {
-    setBusy(true);
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
-    });
-    if (result.error) {
-      setBusy(false);
-      toast.error("Gagal log masuk dengan Google");
-      return;
-    }
-    if (result.redirected) return;
-    navigate({ to: "/leads" });
-  }
+
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -144,21 +133,7 @@ function AuthPage() {
               </TabsContent>
             </Tabs>
 
-            <div className="my-4 flex items-center gap-2 text-xs text-muted-foreground">
-              <div className="flex-1 h-px bg-border" />
-              atau
-              <div className="flex-1 h-px bg-border" />
-            </div>
 
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={handleGoogle}
-              disabled={busy}
-              type="button"
-            >
-              Sambung dengan Google
-            </Button>
           </CardContent>
         </Card>
       </div>
