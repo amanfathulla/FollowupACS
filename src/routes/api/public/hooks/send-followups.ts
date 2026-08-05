@@ -216,8 +216,14 @@ export const Route = createFileRoute("/api/public/hooks/send-followups")({
 
           const message = renderTemplate(step.message_template ?? "", {
             nama: lead.name,
+            telefon: lead.phone,
             produk: lead.product ?? "",
+            model_kereta: lead.car_model ?? "",
+            nama_whatsapp: lead.whatsapp_name ?? "",
+            nota: lead.notes ?? "",
+            jenis_lead: lead.lead_type ?? "",
           });
+
 
           let result;
           if (step.media_type && step.media_url) {
