@@ -534,11 +534,13 @@ function MessagesPage() {
               <div>
                 <Label>{messageMode === "media" ? "Caption (opsyenal)" : "Ayat mesej"}</Label>
                 <Textarea
+                  ref={messageRef}
                   rows={8}
                   value={draftMessage}
                   onChange={(e) => setDraftMessage(e.target.value)}
                   disabled={!isAdmin}
                 />
+
               </div>
 
               <div className="flex gap-2">
