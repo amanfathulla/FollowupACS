@@ -17,6 +17,9 @@ import {
   RefreshCcw,
   AlertTriangle,
   Power,
+  Settings2,
+  Keyboard,
+  ShieldAlert,
 } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
@@ -53,6 +56,28 @@ import {
   reassignLeadsFromSender,
 } from "@/lib/senders.functions";
 import { getMyRole } from "@/lib/whatsapp.functions";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+const REST_OPTIONS = [
+  { value: "30", label: "30 minit" },
+  { value: "45", label: "45 minit" },
+  { value: "60", label: "1 jam" },
+  { value: "120", label: "2 jam" },
+];
+
+const TYPING_OPTIONS = [
+  { value: "0", label: "Tiada" },
+  { value: "1", label: "1 saat" },
+  { value: "2", label: "2 saat" },
+  { value: "3", label: "3 saat" },
+  { value: "5", label: "5 saat" },
+];
 
 export function SendersPanel() {
   const qc = useQueryClient();
@@ -82,8 +107,13 @@ export function SendersPanel() {
     phone_number: "",
     gap_seconds: 5,
     daily_limit: 200,
+    typing_seconds: 1,
+    stopper_enabled: false,
+    batch_size: 50,
+    rest_minutes: 60,
     is_active: true,
   });
+  const [tuning, setTuning] = useState<any | null>(null);
 
   // QR modal state
   const [qrOpen, setQrOpen] = useState(false);
@@ -101,7 +131,17 @@ export function SendersPanel() {
       qc.invalidateQueries({ queryKey: ["senderStats"] });
       // Auto-open QR for new sender
       setQrDevice(created.phone_number);
-      setForm({ label: "", phone_number: "", gap_seconds: 5, daily_limit: 200, is_active: true });
+      setForm({
+        label: "",
+        phone_number: "",
+        gap_seconds: 5,
+        daily_limit: 200,
+        typing_seconds: 1,
+        stopper_enabled: false,
+        batch_size: 50,
+        rest_minutes: 60,
+        is_active: true,
+      });
       openQrFor(created.phone_number);
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal tambah"),
@@ -112,6 +152,10 @@ export function SendersPanel() {
       id: string;
       gap_seconds?: number;
       daily_limit?: number;
+      typing_seconds?: number;
+      stopper_enabled?: boolean;
+      batch_size?: number;
+      rest_minutes?: number;
       is_active?: boolean;
       label?: string;
     }) => updateFn({ data: v }),
@@ -251,6 +295,84 @@ export function SendersPanel() {
                     />
                   </div>
                 </div>
+                <div className="grid gap-3 border-t pt-3 sm:grid-cols-2">
+                  <div>
+                    <Label className="flex items-center gap-1.5">
+                      <Keyboard className="h-3.5 w-3.5" /> Typing simulation
+                    </Label>
+                    <Select
+                      value={String(form.typing_seconds)}
+                      onValueChange={(v) => setForm({ ...form, typing_seconds: Number(v) })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {TYPING_OPTIONS.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>
+                            {o.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Simulasi sedang menaip sebelum mesej dihantar. Membantu elak spam detection.
+                    </p>
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label className="flex items-center gap-1.5">
+                        <ShieldAlert className="h-3.5 w-3.5" /> Stopper (Anti-Ban)
+                      </Label>
+                      <Switch
+                        checked={form.stopper_enabled}
+                        onCheckedChange={(v) => setForm({ ...form, stopper_enabled: v })}
+                      />
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Berhenti seketika selepas hantar X mesej untuk elak kena ban.
+                    </p>
+                  </div>
+                  {form.stopper_enabled && (
+                    <>
+                      <div>
+                        <Label>Bilangan Mesej / Batch</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          value={form.batch_size}
+                          onChange={(e) =>
+                            setForm({ ...form, batch_size: Number(e.target.value) || 1 })
+                          }
+                        />
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Hantar X mesej, kemudian berhenti.
+                        </p>
+                      </div>
+                      <div>
+                        <Label>Masa Rehat</Label>
+                        <Select
+                          value={String(form.rest_minutes)}
+                          onValueChange={(v) => setForm({ ...form, rest_minutes: Number(v) })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {REST_OPTIONS.map((o) => (
+                              <SelectItem key={o.value} value={o.value}>
+                                {o.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Tempoh rehat sebelum sambung semula.
+                        </p>
+                      </div>
+                    </>
+                  )}
+                </div>
                 <p className="text-xs text-muted-foreground">
                   Selepas disimpan, modal QR akan buka untuk connect device baharu.
                 </p>
@@ -327,6 +449,7 @@ export function SendersPanel() {
               <TableHead className="text-right">Assigned</TableHead>
               <TableHead className="w-24">Gap (s)</TableHead>
               <TableHead className="w-28">Had harian</TableHead>
+              <TableHead className="w-44">Anti-Ban</TableHead>
               <TableHead className="w-20">Aktif</TableHead>
               <TableHead className="w-32">Aksi</TableHead>
             </TableRow>
@@ -403,6 +526,34 @@ export function SendersPanel() {
                   />
                 </TableCell>
                 <TableCell>
+                  <div className="flex flex-col gap-1 text-xs">
+                    <Badge variant="outline" className="w-fit gap-1">
+                      <Keyboard className="h-3 w-3" />
+                      Typing {s.typing_seconds ?? 0}s
+                    </Badge>
+                    {s.stopper_enabled ? (
+                      <Badge
+                        variant="outline"
+                        className="w-fit gap-1 border-warning/30 bg-warning/15 text-warning"
+                      >
+                        <ShieldAlert className="h-3 w-3" />
+                        {s.batch_size} mesej / rehat{" "}
+                        {REST_OPTIONS.find((o) => o.value === String(s.rest_minutes))?.label ??
+                          `${s.rest_minutes} minit`}
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="w-fit bg-muted text-muted-foreground">
+                        Stopper mati
+                      </Badge>
+                    )}
+                    {s.resume_at && new Date(s.resume_at).getTime() > Date.now() && (
+                      <span className="text-[11px] text-warning">
+                        Rehat hingga {new Date(s.resume_at).toLocaleTimeString()}
+                      </span>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
                   <Switch
                     checked={s.is_active}
                     disabled={!isAdmin}
@@ -423,6 +574,14 @@ export function SendersPanel() {
                         ) : (
                           <QrCode className="w-4 h-4" />
                         )}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title="Tetapan anti-ban"
+                        onClick={() => setTuning(s)}
+                      >
+                        <Settings2 className="w-4 h-4" />
                       </Button>
                       <Button
                         variant="ghost"
@@ -458,7 +617,7 @@ export function SendersPanel() {
             ))}
             {senders.data && senders.data.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
                   Belum ada nombor sender. Tambah satu untuk mula.
                 </TableCell>
               </TableRow>
@@ -466,6 +625,122 @@ export function SendersPanel() {
           </TableBody>
         </Table>
       </Card>
+
+      {/* Anti-ban tuning modal */}
+      <Dialog open={!!tuning} onOpenChange={(v) => !v && setTuning(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Tetapan Anti-Ban · {tuning?.label}</DialogTitle>
+          </DialogHeader>
+          {tuning && (
+            <div className="space-y-4">
+              <div>
+                <Label className="flex items-center gap-1.5">
+                  <Keyboard className="h-3.5 w-3.5" /> Typing Simulation
+                </Label>
+                <Select
+                  value={String(tuning.typing_seconds ?? 1)}
+                  onValueChange={(v) => setTuning({ ...tuning, typing_seconds: Number(v) })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TYPING_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>
+                        {o.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Simulasi sedang menaip sebelum mesej dihantar. Membantu elak spam detection.
+                </p>
+              </div>
+
+              <div className="border-t pt-3">
+                <div className="flex items-center justify-between gap-3">
+                  <Label className="flex items-center gap-1.5">
+                    <ShieldAlert className="h-3.5 w-3.5" /> Stopper (Anti-Ban)
+                  </Label>
+                  <Switch
+                    checked={!!tuning.stopper_enabled}
+                    onCheckedChange={(v) => setTuning({ ...tuning, stopper_enabled: v })}
+                  />
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Berhenti seketika selepas hantar X mesej untuk elak kena ban.
+                </p>
+              </div>
+
+              {tuning.stopper_enabled && (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <Label>Bilangan Mesej / Batch</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={tuning.batch_size ?? 50}
+                      onChange={(e) =>
+                        setTuning({ ...tuning, batch_size: Number(e.target.value) || 1 })
+                      }
+                    />
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Hantar X mesej, kemudian berhenti.
+                    </p>
+                  </div>
+                  <div>
+                    <Label>Masa Rehat</Label>
+                    <Select
+                      value={String(tuning.rest_minutes ?? 60)}
+                      onValueChange={(v) => setTuning({ ...tuning, rest_minutes: Number(v) })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {REST_OPTIONS.map((o) => (
+                          <SelectItem key={o.value} value={o.value}>
+                            {o.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Tempoh rehat sebelum sambung semula.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              disabled={!isAdmin || updateMutation.isPending}
+              onClick={() => {
+                if (!tuning) return;
+                updateMutation.mutate(
+                  {
+                    id: tuning.id,
+                    typing_seconds: Number(tuning.typing_seconds ?? 1),
+                    stopper_enabled: !!tuning.stopper_enabled,
+                    batch_size: Number(tuning.batch_size ?? 50),
+                    rest_minutes: Number(tuning.rest_minutes ?? 60),
+                  },
+                  {
+                    onSuccess: () => {
+                      toast.success("Tetapan anti-ban disimpan");
+                      setTuning(null);
+                    },
+                  },
+                );
+              }}
+            >
+              Simpan tetapan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* QR modal */}
       <Dialog open={qrOpen} onOpenChange={(v) => (v ? setQrOpen(true) : closeQr())}>
