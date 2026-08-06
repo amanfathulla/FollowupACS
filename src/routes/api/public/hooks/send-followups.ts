@@ -111,7 +111,7 @@ export const Route = createFileRoute("/api/public/hooks/send-followups")({
         const { data: senders } = await supabaseAdmin
           .from("whatsapp_senders")
           .select(
-            "id, phone_number, is_active, gap_seconds, daily_limit, last_sent_at, connection_status, consecutive_failures",
+            "id, phone_number, is_active, gap_seconds, daily_limit, typing_seconds, stopper_enabled, batch_size, rest_minutes, resume_at, last_sent_at, connection_status, consecutive_failures",
           );
         const senderMap = new Map((senders ?? []).map((s) => [s.id as string, s]));
 
@@ -196,6 +196,11 @@ export const Route = createFileRoute("/api/public/hooks/send-followups")({
               skipped++;
               continue;
             }
+            const resumeAt = sender.resume_at as string | null;
+            if (resumeAt && new Date(resumeAt).getTime() > Date.now()) {
+              deferred++;
+              continue;
+            }
             const usedToday = dailyCounts.get(sender.id as string) ?? 0;
             if (usedToday >= (sender.daily_limit as number)) {
               deferred++;
@@ -224,6 +229,11 @@ export const Route = createFileRoute("/api/public/hooks/send-followups")({
             jenis_lead: lead.lead_type ?? "",
           });
 
+
+          const typingSec = Math.min(Number(sender?.typing_seconds ?? 0) || 0, 10);
+          if (typingSec > 0) {
+            await new Promise((r) => setTimeout(r, typingSec * 1000));
+          }
 
           let result;
           if (step.media_type && step.media_url) {
@@ -282,17 +292,37 @@ export const Route = createFileRoute("/api/public/hooks/send-followups")({
             });
             if (senderId) {
               inMemoryLastSent.set(senderId, Date.now());
-              dailyCounts.set(senderId, (dailyCounts.get(senderId) ?? 0) + 1);
+              const newCount = (dailyCounts.get(senderId) ?? 0) + 1;
+              dailyCounts.set(senderId, newCount);
               senderFailures.set(senderId, 0);
+              const batchSize = Number(sender?.batch_size ?? 0) || 0;
+              const restMinutes = Number(sender?.rest_minutes ?? 0) || 0;
+              const needsRest =
+                Boolean(sender?.stopper_enabled) &&
+                batchSize > 0 &&
+                restMinutes > 0 &&
+                newCount % batchSize === 0;
               await supabaseAdmin
                 .from("whatsapp_senders")
                 .update({
                   last_sent_at: new Date().toISOString(),
                   connection_status: "connected",
                   consecutive_failures: 0,
+                  ...(needsRest
+                    ? {
+                        resume_at: new Date(
+                          Date.now() + restMinutes * 60_000,
+                        ).toISOString(),
+                      }
+                    : {}),
                   updated_at: new Date().toISOString(),
                 })
                 .eq("id", senderId);
+              if (needsRest) {
+                (sender as { resume_at?: string | null }).resume_at = new Date(
+                  Date.now() + restMinutes * 60_000,
+                ).toISOString();
+              }
             }
             sent++;
           } else {
