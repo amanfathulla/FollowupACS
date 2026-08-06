@@ -488,6 +488,7 @@ export type Database = {
       }
       whatsapp_senders: {
         Row: {
+          batch_size: number
           connection_status: string
           consecutive_failures: number
           created_at: string
@@ -500,9 +501,14 @@ export type Database = {
           last_checked_at: string | null
           last_sent_at: string | null
           phone_number: string
+          rest_minutes: number
+          resume_at: string | null
+          stopper_enabled: boolean
+          typing_seconds: number
           updated_at: string
         }
         Insert: {
+          batch_size?: number
           connection_status?: string
           consecutive_failures?: number
           created_at?: string
@@ -515,9 +521,14 @@ export type Database = {
           last_checked_at?: string | null
           last_sent_at?: string | null
           phone_number: string
+          rest_minutes?: number
+          resume_at?: string | null
+          stopper_enabled?: boolean
+          typing_seconds?: number
           updated_at?: string
         }
         Update: {
+          batch_size?: number
           connection_status?: string
           consecutive_failures?: number
           created_at?: string
@@ -530,6 +541,10 @@ export type Database = {
           last_checked_at?: string | null
           last_sent_at?: string | null
           phone_number?: string
+          rest_minutes?: number
+          resume_at?: string | null
+          stopper_enabled?: boolean
+          typing_seconds?: number
           updated_at?: string
         }
         Relationships: []
