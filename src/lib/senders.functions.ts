@@ -17,7 +17,7 @@ export const listSenders = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("whatsapp_senders")
       .select(
-        "id, label, phone_number, is_active, gap_seconds, daily_limit, current_lead_count, last_sent_at, connection_status, last_checked_at, consecutive_failures, created_at",
+        "id, label, phone_number, is_active, gap_seconds, daily_limit, typing_seconds, stopper_enabled, batch_size, rest_minutes, resume_at, current_lead_count, last_sent_at, connection_status, last_checked_at, consecutive_failures, created_at",
       )
       .order("created_at", { ascending: true });
     if (error) throw new Error(error.message);
@@ -65,6 +65,10 @@ const senderInput = z.object({
   phone_number: z.string().min(6).max(30),
   gap_seconds: z.number().int().min(1).max(3600).default(5),
   daily_limit: z.number().int().min(1).max(5000).default(200),
+  typing_seconds: z.number().int().min(0).max(60).default(1),
+  stopper_enabled: z.boolean().default(false),
+  batch_size: z.number().int().min(1).max(5000).default(50),
+  rest_minutes: z.number().int().min(1).max(1440).default(60),
   is_active: z.boolean().default(true),
 });
 
@@ -92,6 +96,10 @@ export const updateSender = createServerFn({ method: "POST" })
         phone_number: z.string().min(6).max(30).optional(),
         gap_seconds: z.number().int().min(1).max(3600).optional(),
         daily_limit: z.number().int().min(1).max(5000).optional(),
+        typing_seconds: z.number().int().min(0).max(60).optional(),
+        stopper_enabled: z.boolean().optional(),
+        batch_size: z.number().int().min(1).max(5000).optional(),
+        rest_minutes: z.number().int().min(1).max(1440).optional(),
         is_active: z.boolean().optional(),
       })
       .parse(d),
