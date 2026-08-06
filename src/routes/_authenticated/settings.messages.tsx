@@ -200,11 +200,13 @@ function MessagesPage() {
 
   const deleteStepMutation = useMutation({
     mutationFn: (id: string) => deleteStepFn({ data: { id } }),
-    onSuccess: () => {
-      toast.success("Langkah dipadam");
+    onSuccess: async () => {
       setSelectedStepId(null);
-      qc.invalidateQueries({ queryKey: ["steps"] });
+      await qc.invalidateQueries({ queryKey: ["steps"] });
+      await steps.refetch();
+      toast.success("Langkah dipadam");
     },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal padam langkah"),
   });
 
   const selectedStep = steps.data?.find((x: any) => x.id === selectedStepId);
