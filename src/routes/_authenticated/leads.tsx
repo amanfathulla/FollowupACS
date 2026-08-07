@@ -92,6 +92,92 @@ const FU_STATUS_COLOR: Record<string, string> = {
   cancelled: "bg-muted text-muted-foreground border-border",
 };
 
+type ImportRow = {
+  name: string;
+  phone: string;
+  product: string | null;
+  car_model: string | null;
+  notes: string | null;
+};
+
+const IMPORT_TEMPLATE_HEADERS = ["Nama", "Telefon", "Produk", "Model Kereta", "Nota"];
+
+function downloadImportTemplate() {
+  const rows = [
+    IMPORT_TEMPLATE_HEADERS,
+    ["Ahmad Zaki", "0123456789", "Servis Kereta", "Perodua Myvi 2019", "Minat pakej penuh"],
+    ["Siti Nurhaliza", "60198765432", "Tayar", "Honda City 2021", ""],
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws["!cols"] = [{ wch: 22 }, { wch: 16 }, { wch: 20 }, { wch: 24 }, { wch: 28 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Lead");
+  XLSX.writeFile(wb, "contoh-import-lead.xlsx");
+}
+
+const NAME_KEYS = ["nama", "name", "namalead", "namapelanggan", "fullname", "namapenuh"];
+const PHONE_KEYS = [
+  "telefon",
+  "notelefon",
+  "nombortelefon",
+  "nombor",
+  "no",
+  "phone",
+  "phonenumber",
+  "hp",
+  "nohp",
+  "whatsapp",
+  "nowhatsapp",
+  "mobile",
+];
+const PRODUCT_KEYS = ["produk", "product", "pakej", "package", "servis", "service"];
+const CAR_KEYS = ["modelkereta", "kereta", "model", "carmodel", "car", "kenderaan", "vehicle"];
+const NOTE_KEYS = ["nota", "note", "notes", "catatan", "remark", "remarks"];
+
+const normKey = (k: string) => k.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+function pick(row: Record<string, unknown>, keys: string[]): string {
+  for (const [rawKey, val] of Object.entries(row)) {
+    if (keys.includes(normKey(rawKey))) {
+      const s = String(val ?? "").trim();
+      if (s) return s;
+    }
+  }
+  return "";
+}
+
+const cleanPhone = (v: string) => v.replace(/[\s\-().]/g, "").replace(/^\+/, "");
+
+function parseSheetRows(rows: Record<string, unknown>[]): ImportRow[] {
+  const out: ImportRow[] = [];
+  for (const r of rows) {
+    let name = pick(r, NAME_KEYS);
+    let phone = cleanPhone(pick(r, PHONE_KEYS));
+    // fallback: tiada header dikenali — guna 2 lajur pertama (nama, telefon)
+    if (!name || !phone) {
+      const vals = Object.values(r).map((v) => String(v ?? "").trim());
+      const phoneIdx = vals.findIndex((v) => /^\+?\d[\d\s\-().]{5,}$/.test(v));
+      if (phoneIdx >= 0) {
+        const nameIdx = vals.findIndex((v, i) => i !== phoneIdx && v && !/^\+?\d+$/.test(cleanPhone(v)));
+        if (!phone) phone = cleanPhone(vals[phoneIdx]);
+        if (!name && nameIdx >= 0) name = vals[nameIdx];
+      }
+    }
+    if (!name || cleanPhone(phone).length < 6) continue;
+    if (/^(nama|name)$/i.test(name)) continue; // baris header terulang
+    out.push({
+      name: name.slice(0, 120),
+      phone: cleanPhone(phone).slice(0, 30),
+      product: pick(r, PRODUCT_KEYS) || null,
+      car_model: pick(r, CAR_KEYS) || null,
+      notes: pick(r, NOTE_KEYS) || null,
+    });
+  }
+  return out;
+}
+
+
+
 function StatCard(props: {
   title: string;
   value: string | number;
