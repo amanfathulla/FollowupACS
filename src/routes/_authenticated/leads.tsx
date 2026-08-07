@@ -297,8 +297,14 @@ function LeadsPage() {
 
 
   const bulkImportMutation = useMutation({
-    mutationFn: (rows: Array<{ name: string; phone: string; product: string | null; car_model: string | null }>) =>
-      bulkImportLeadsFn({ data: { rows } }),
+    mutationFn: (rows: ImportRow[]) =>
+      bulkImportLeadsFn({
+        data: {
+          rows,
+          lead_type: importLeadType,
+          assigned_sender_id: importSenderId === "auto" ? null : importSenderId,
+        },
+      }),
     onSuccess: (r) => {
       toast.success(`Berjaya import ${r.inserted} lead — followup dijana automatik`);
       setImportPreview(null);
@@ -315,20 +321,29 @@ function LeadsPage() {
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf, { type: "array" });
       const sheet = wb.Sheets[wb.SheetNames[0]];
+      if (!sheet) {
+        toast.error("Fail kosong — tiada sheet ditemui.");
+        return;
+      }
       const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
-      const parsed = rows
-        .map((r) => {
-          const name = String(r.Nama ?? r.nama ?? r.Name ?? r.name ?? "").trim();
-          const phone = String(
-            r.Telefon ?? r.telefon ?? r.Phone ?? r.phone ?? r.Nombor ?? r.nombor ?? "",
-          ).trim();
-          const product = String(r.Produk ?? r.produk ?? r.Product ?? r.product ?? "").trim();
-          const carModel = String(r["Model Kereta"] ?? r["Model kereta"] ?? r.model_kereta ?? r.ModelKereta ?? r.Model ?? r.model ?? "").trim();
-          return { name, phone, product: product || null, car_model: carModel || null };
-        })
-        .filter((r) => r.name.length > 0 && r.phone.length >= 6);
+      let parsed = parseSheetRows(rows);
       if (parsed.length === 0) {
-        toast.error("Tiada baris sah. Pastikan lajur Nama & Telefon wujud.");
+        // cuba tanpa header (fail tanpa baris tajuk)
+        const raw = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "" });
+        parsed = parseSheetRows(
+          raw.map((arr) => ({
+            Nama: arr[0],
+            Telefon: arr[1],
+            Produk: arr[2],
+            "Model Kereta": arr[3],
+            Nota: arr[4],
+          })),
+        );
+      }
+      if (parsed.length === 0) {
+        toast.error(
+          "Tiada baris sah. Pastikan ada lajur Nama & Telefon (atau nama di lajur A, telefon di lajur B). Muat turun fail contoh untuk format betul.",
+        );
         return;
       }
       if (parsed.length > 500) {
@@ -340,6 +355,7 @@ function LeadsPage() {
       toast.error("Gagal baca fail: " + (e instanceof Error ? e.message : String(e)));
     }
   }
+
 
   const statusMutation = useMutation({
     mutationFn: (v: { id: string; status: "active" | "replied" | "converted" | "stopped" }) =>
