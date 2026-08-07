@@ -16,6 +16,8 @@ import {
   XCircle,
   ExternalLink,
   Upload,
+  Download,
+
   Pencil,
   Trash2,
   ArrowLeft,
