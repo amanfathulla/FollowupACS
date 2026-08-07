@@ -235,9 +235,10 @@ function LeadsPage() {
 
   const [openLead, setOpenLead] = useState(false);
   const [openImport, setOpenImport] = useState(false);
-  const [importPreview, setImportPreview] = useState<
-    Array<{ name: string; phone: string; product: string | null; car_model: string | null }> | null
-  >(null);
+  const [importPreview, setImportPreview] = useState<ImportRow[] | null>(null);
+  const [importLeadType, setImportLeadType] = useState<"prospect" | "converted">("prospect");
+  const [importSenderId, setImportSenderId] = useState<string>("auto");
+
   const [form, setForm] = useState({
     name: "",
     phone: "",
