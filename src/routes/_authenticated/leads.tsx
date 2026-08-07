@@ -16,6 +16,8 @@ import {
   XCircle,
   ExternalLink,
   Upload,
+  Download,
+
   Pencil,
   Trash2,
   ArrowLeft,
@@ -92,6 +94,92 @@ const FU_STATUS_COLOR: Record<string, string> = {
   cancelled: "bg-muted text-muted-foreground border-border",
 };
 
+type ImportRow = {
+  name: string;
+  phone: string;
+  product: string | null;
+  car_model: string | null;
+  notes: string | null;
+};
+
+const IMPORT_TEMPLATE_HEADERS = ["Nama", "Telefon", "Produk", "Model Kereta", "Nota"];
+
+function downloadImportTemplate() {
+  const rows = [
+    IMPORT_TEMPLATE_HEADERS,
+    ["Ahmad Zaki", "0123456789", "Servis Kereta", "Perodua Myvi 2019", "Minat pakej penuh"],
+    ["Siti Nurhaliza", "60198765432", "Tayar", "Honda City 2021", ""],
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws["!cols"] = [{ wch: 22 }, { wch: 16 }, { wch: 20 }, { wch: 24 }, { wch: 28 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Lead");
+  XLSX.writeFile(wb, "contoh-import-lead.xlsx");
+}
+
+const NAME_KEYS = ["nama", "name", "namalead", "namapelanggan", "fullname", "namapenuh"];
+const PHONE_KEYS = [
+  "telefon",
+  "notelefon",
+  "nombortelefon",
+  "nombor",
+  "no",
+  "phone",
+  "phonenumber",
+  "hp",
+  "nohp",
+  "whatsapp",
+  "nowhatsapp",
+  "mobile",
+];
+const PRODUCT_KEYS = ["produk", "product", "pakej", "package", "servis", "service"];
+const CAR_KEYS = ["modelkereta", "kereta", "model", "carmodel", "car", "kenderaan", "vehicle"];
+const NOTE_KEYS = ["nota", "note", "notes", "catatan", "remark", "remarks"];
+
+const normKey = (k: string) => k.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+function pick(row: Record<string, unknown>, keys: string[]): string {
+  for (const [rawKey, val] of Object.entries(row)) {
+    if (keys.includes(normKey(rawKey))) {
+      const s = String(val ?? "").trim();
+      if (s) return s;
+    }
+  }
+  return "";
+}
+
+const cleanPhone = (v: string) => v.replace(/[\s\-().]/g, "").replace(/^\+/, "");
+
+function parseSheetRows(rows: Record<string, unknown>[]): ImportRow[] {
+  const out: ImportRow[] = [];
+  for (const r of rows) {
+    let name = pick(r, NAME_KEYS);
+    let phone = cleanPhone(pick(r, PHONE_KEYS));
+    // fallback: tiada header dikenali — guna 2 lajur pertama (nama, telefon)
+    if (!name || !phone) {
+      const vals = Object.values(r).map((v) => String(v ?? "").trim());
+      const phoneIdx = vals.findIndex((v) => /^\+?\d[\d\s\-().]{5,}$/.test(v));
+      if (phoneIdx >= 0) {
+        const nameIdx = vals.findIndex((v, i) => i !== phoneIdx && v && !/^\+?\d+$/.test(cleanPhone(v)));
+        if (!phone) phone = cleanPhone(vals[phoneIdx]);
+        if (!name && nameIdx >= 0) name = vals[nameIdx];
+      }
+    }
+    if (!name || cleanPhone(phone).length < 6) continue;
+    if (/^(nama|name)$/i.test(name)) continue; // baris header terulang
+    out.push({
+      name: name.slice(0, 120),
+      phone: cleanPhone(phone).slice(0, 30),
+      product: pick(r, PRODUCT_KEYS) || null,
+      car_model: pick(r, CAR_KEYS) || null,
+      notes: pick(r, NOTE_KEYS) || null,
+    });
+  }
+  return out;
+}
+
+
+
 function StatCard(props: {
   title: string;
   value: string | number;
@@ -149,9 +237,10 @@ function LeadsPage() {
 
   const [openLead, setOpenLead] = useState(false);
   const [openImport, setOpenImport] = useState(false);
-  const [importPreview, setImportPreview] = useState<
-    Array<{ name: string; phone: string; product: string | null; car_model: string | null }> | null
-  >(null);
+  const [importPreview, setImportPreview] = useState<ImportRow[] | null>(null);
+  const [importLeadType, setImportLeadType] = useState<"prospect" | "converted">("prospect");
+  const [importSenderId, setImportSenderId] = useState<string>("auto");
+
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -210,8 +299,14 @@ function LeadsPage() {
 
 
   const bulkImportMutation = useMutation({
-    mutationFn: (rows: Array<{ name: string; phone: string; product: string | null; car_model: string | null }>) =>
-      bulkImportLeadsFn({ data: { rows } }),
+    mutationFn: (rows: ImportRow[]) =>
+      bulkImportLeadsFn({
+        data: {
+          rows,
+          lead_type: importLeadType,
+          assigned_sender_id: importSenderId === "auto" ? null : importSenderId,
+        },
+      }),
     onSuccess: (r) => {
       toast.success(`Berjaya import ${r.inserted} lead — followup dijana automatik`);
       setImportPreview(null);
@@ -228,20 +323,29 @@ function LeadsPage() {
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf, { type: "array" });
       const sheet = wb.Sheets[wb.SheetNames[0]];
+      if (!sheet) {
+        toast.error("Fail kosong — tiada sheet ditemui.");
+        return;
+      }
       const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
-      const parsed = rows
-        .map((r) => {
-          const name = String(r.Nama ?? r.nama ?? r.Name ?? r.name ?? "").trim();
-          const phone = String(
-            r.Telefon ?? r.telefon ?? r.Phone ?? r.phone ?? r.Nombor ?? r.nombor ?? "",
-          ).trim();
-          const product = String(r.Produk ?? r.produk ?? r.Product ?? r.product ?? "").trim();
-          const carModel = String(r["Model Kereta"] ?? r["Model kereta"] ?? r.model_kereta ?? r.ModelKereta ?? r.Model ?? r.model ?? "").trim();
-          return { name, phone, product: product || null, car_model: carModel || null };
-        })
-        .filter((r) => r.name.length > 0 && r.phone.length >= 6);
+      let parsed = parseSheetRows(rows);
       if (parsed.length === 0) {
-        toast.error("Tiada baris sah. Pastikan lajur Nama & Telefon wujud.");
+        // cuba tanpa header (fail tanpa baris tajuk)
+        const raw = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "" });
+        parsed = parseSheetRows(
+          raw.map((arr) => ({
+            Nama: arr[0],
+            Telefon: arr[1],
+            Produk: arr[2],
+            "Model Kereta": arr[3],
+            Nota: arr[4],
+          })),
+        );
+      }
+      if (parsed.length === 0) {
+        toast.error(
+          "Tiada baris sah. Pastikan ada lajur Nama & Telefon (atau nama di lajur A, telefon di lajur B). Muat turun fail contoh untuk format betul.",
+        );
         return;
       }
       if (parsed.length > 500) {
@@ -253,6 +357,7 @@ function LeadsPage() {
       toast.error("Gagal baca fail: " + (e instanceof Error ? e.message : String(e)));
     }
   }
+
 
   const statusMutation = useMutation({
     mutationFn: (v: { id: string; status: "active" | "replied" | "converted" | "stopped" }) =>
@@ -492,11 +597,54 @@ function LeadsPage() {
                 <DialogTitle>Import Lead Pukal (Excel / CSV)</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
-                <div className="text-xs text-muted-foreground">
-                  Lajur diperlukan: <code>Nama</code>, <code>Telefon</code>. Opsyenal:{" "}
-                  <code>Produk</code>, <code>Model Kereta</code>. Maksimum 500 lead per import.
-                  Setiap lead akan diagihkan automatik ke nombor sender aktif.
+                <div className="rounded-xl border border-border bg-muted/40 p-3 space-y-2">
+                  <div className="text-xs text-muted-foreground">
+                    Lajur diperlukan: <code>Nama</code>, <code>Telefon</code>. Opsyenal:{" "}
+                    <code>Produk</code>, <code>Model Kereta</code>, <code>Nota</code>. Maksimum 500
+                    lead per import.
+                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={downloadImportTemplate}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Muat turun fail contoh (.xlsx)
+                  </Button>
                 </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>Jenis Lead</Label>
+                    <Select
+                      value={importLeadType}
+                      onValueChange={(v) => setImportLeadType(v as "prospect" | "converted")}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="prospect">Lead PROSPEK (belum beli)</SelectItem>
+                        <SelectItem value="converted">Lead CONVERTED (dah beli)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Sender WhatsApp</Label>
+                    <Select value={importSenderId} onValueChange={setImportSenderId}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="auto">Auto (agihan sistem)</SelectItem>
+                        {(senderOptions.data ?? []).map((s: any) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.label} — {s.phone_number}
+                            {s.is_active ? "" : " (tidak aktif)"}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+
 
                 {!importPreview && (
                   <label className="flex flex-col items-center justify-center border-2 border-dashed border-border rounded-xl p-8 cursor-pointer hover:border-primary/50 transition-colors">
