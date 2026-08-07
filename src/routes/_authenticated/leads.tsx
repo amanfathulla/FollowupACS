@@ -595,11 +595,54 @@ function LeadsPage() {
                 <DialogTitle>Import Lead Pukal (Excel / CSV)</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
-                <div className="text-xs text-muted-foreground">
-                  Lajur diperlukan: <code>Nama</code>, <code>Telefon</code>. Opsyenal:{" "}
-                  <code>Produk</code>, <code>Model Kereta</code>. Maksimum 500 lead per import.
-                  Setiap lead akan diagihkan automatik ke nombor sender aktif.
+                <div className="rounded-xl border border-border bg-muted/40 p-3 space-y-2">
+                  <div className="text-xs text-muted-foreground">
+                    Lajur diperlukan: <code>Nama</code>, <code>Telefon</code>. Opsyenal:{" "}
+                    <code>Produk</code>, <code>Model Kereta</code>, <code>Nota</code>. Maksimum 500
+                    lead per import.
+                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={downloadImportTemplate}>
+                    <Download className="w-4 h-4 mr-2" />
+                    Muat turun fail contoh (.xlsx)
+                  </Button>
                 </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>Jenis Lead</Label>
+                    <Select
+                      value={importLeadType}
+                      onValueChange={(v) => setImportLeadType(v as "prospect" | "converted")}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="prospect">Lead PROSPEK (belum beli)</SelectItem>
+                        <SelectItem value="converted">Lead CONVERTED (dah beli)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Sender WhatsApp</Label>
+                    <Select value={importSenderId} onValueChange={setImportSenderId}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="auto">Auto (agihan sistem)</SelectItem>
+                        {(senderOptions.data ?? []).map((s: any) => (
+                          <SelectItem key={s.id} value={s.id}>
+                            {s.label} — {s.phone_number}
+                            {s.is_active ? "" : " (tidak aktif)"}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+
 
                 {!importPreview && (
                   <label className="flex flex-col items-center justify-center border-2 border-dashed border-border rounded-xl p-8 cursor-pointer hover:border-primary/50 transition-colors">
