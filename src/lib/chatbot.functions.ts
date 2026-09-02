@@ -109,3 +109,74 @@ export const setLeadChatbotPaused = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+// Verify the API key / gateway connection for the currently saved provider.
+export const verifyChatbotConnection = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await requireAdmin(context);
+    const { loadChatbotSettings, verifyProvider } = await import("./chatbot.server");
+    const settings = await loadChatbotSettings();
+    if (!settings) throw new Error("Chatbot settings tiada");
+    const res = await verifyProvider(settings);
+    if (!res.ok) throw new Error(res.error);
+    return { ok: true, provider: settings.ai_provider, model: settings.model_name, sample: res.sample };
+  });
+
+// Test the chatbot end-to-end: generate a reply from the knowledge base and
+// send it to your own WhatsApp number through a chosen sender.
+export const testChatbotWhatsapp = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { phone: string; message: string; senderId?: string | null }) =>
+    z
+      .object({
+        phone: z.string().min(8).max(20),
+        message: z.string().min(1).max(1000),
+        senderId: z.string().uuid().nullable().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context);
+    const { loadChatbotSettings, generateReply } = await import("./chatbot.server");
+    const { loadCredentials, sendUstazaiMessage, normalizePhone } = await import("./ustazai.server");
+
+    const settings = await loadChatbotSettings();
+    if (!settings) throw new Error("Chatbot settings tiada");
+
+    const creds = await loadCredentials();
+    if (!creds) throw new Error("Kredential WhatsApp (ustazai) belum diset");
+
+    let senderPhone: string | undefined;
+    if (data.senderId) {
+      const { data: s, error } = await context.supabase
+        .from("whatsapp_senders")
+        .select("phone_number")
+        .eq("id", data.senderId)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      senderPhone = (s?.phone_number as string | undefined) ?? undefined;
+    }
+
+    const ai = await generateReply({
+      settings,
+      history: [],
+      incoming: data.message,
+      leadName: "Tester",
+    });
+    if (!ai.ok) throw new Error(ai.error);
+
+    const to = normalizePhone(data.phone);
+    const sent: string[] = [];
+    for (const part of ai.parts) {
+      const res = await sendUstazaiMessage({
+        credentials: creds,
+        number: to,
+        message: part,
+        senderOverride: senderPhone,
+      });
+      if (!res.ok) throw new Error(`Gagal hantar WhatsApp: ${res.error}`);
+      sent.push(part);
+    }
+    return { ok: true, to, sender: senderPhone ?? creds.sender, parts: sent };
+  });

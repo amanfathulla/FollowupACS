@@ -179,3 +179,20 @@ export async function generateReply(params: {
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
 }
+
+// Ping the configured provider with a minimal prompt to verify the API key works.
+export async function verifyProvider(settings: ChatbotSettings): Promise<
+  { ok: true; sample: string } | { ok: false; error: string }
+> {
+  const res = await generateReply({
+    settings: {
+      ...settings,
+      tone_instruction: "Jawab ringkas sahaja dengan perkataan: OK",
+      product_knowledge: null,
+    },
+    history: [],
+    incoming: "ping",
+  });
+  if (!res.ok) return { ok: false, error: res.error };
+  return { ok: true, sample: res.parts.join(" ") };
+}
