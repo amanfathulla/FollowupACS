@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Bot, Save, Send, Eye, EyeOff } from "lucide-react";
+import { Bot, Save, Send, Eye, EyeOff, PlugZap, CheckCircle2, MessageSquare } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,15 +25,18 @@ import {
   updateChatbotSettings,
   setChatbotApiKey,
   testChatbot,
+  verifyChatbotConnection,
+  testChatbotWhatsapp,
 } from "@/lib/chatbot.functions";
 import { getMyRole } from "@/lib/whatsapp.functions";
+import { listSenders } from "@/lib/senders.functions";
 
 export const Route = createFileRoute("/_authenticated/settings/chatbot")({
   component: ChatbotSettingsPage,
 });
 
 const PROVIDER_MODELS: Record<string, string[]> = {
-  lovable: ["google/gemini-2.5-flash", "google/gemini-2.5-pro", "openai/gpt-5-mini"],
+  lovable: ["google/gemini-3.7-flash", "google/gemini-3.1-pro-preview", "google/gemini-3.1-flash-lite"],
   gemini: ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"],
   openai: ["gpt-4o-mini", "gpt-4o"],
   claude: ["claude-3-5-sonnet-latest", "claude-3-5-haiku-latest"],
@@ -45,6 +48,9 @@ function ChatbotSettingsPage() {
   const updateFn = useServerFn(updateChatbotSettings);
   const setKeyFn = useServerFn(setChatbotApiKey);
   const testFn = useServerFn(testChatbot);
+  const verifyFn = useServerFn(verifyChatbotConnection);
+  const waTestFn = useServerFn(testChatbotWhatsapp);
+  const sendersFn = useServerFn(listSenders);
   const meFn = useServerFn(getMyRole);
 
   const me = useQuery({ queryKey: ["me"], queryFn: () => meFn() });
@@ -56,6 +62,8 @@ function ChatbotSettingsPage() {
   const [apiKey, setApiKey] = useState("");
   const [testMsg, setTestMsg] = useState("Salam, harga berapa untuk Honda City?");
   const [testResult, setTestResult] = useState<string[] | null>(null);
+  const [selfPhone, setSelfPhone] = useState("");
+  const [selfSenderId, setSelfSenderId] = useState<string>("auto");
 
   useEffect(() => {
     if (settings.data && !draft) setDraft(settings.data);
@@ -79,6 +87,36 @@ function ChatbotSettingsPage() {
       qc.invalidateQueries({ queryKey: ["chatbot-settings"] });
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Gagal simpan key"),
+  });
+
+  const senders = useQuery({ queryKey: ["senders"], queryFn: () => sendersFn() });
+
+  const verifyMutation = useMutation({
+    mutationFn: () => verifyFn(),
+    onSuccess: (r: any) =>
+      toast.success(`API key berjaya sambung — ${r.provider} / ${r.model}`, {
+        description: `Respons AI: ${r.sample}`,
+      }),
+    onError: (e) =>
+      toast.error("API key gagal sambung", {
+        description: e instanceof Error ? e.message : "Ralat tidak diketahui",
+      }),
+  });
+
+  const waTestMutation = useMutation({
+    mutationFn: () =>
+      waTestFn({
+        data: {
+          phone: selfPhone,
+          message: testMsg,
+          senderId: selfSenderId === "auto" ? null : selfSenderId,
+        },
+      }),
+    onSuccess: (r: any) =>
+      toast.success(`Dihantar ke ${r.to} melalui sender ${r.sender}`, {
+        description: `${r.parts.length} mesej dihantar. Semak WhatsApp anda.`,
+      }),
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Test WhatsApp gagal"),
   });
 
   const testMutation = useMutation({
@@ -249,35 +287,112 @@ function ChatbotSettingsPage() {
         </div>
       </Card>
 
-      <Card className="p-6 rounded-2xl space-y-3">
-        <div className="font-medium">Test Chatbot</div>
-        <div className="flex gap-2">
-          <Input
-            value={testMsg}
-            onChange={(e) => setTestMsg(e.target.value)}
-            placeholder="Contoh mesej customer…"
-          />
+      <Card className="p-6 rounded-2xl space-y-5">
+        <div>
+          <div className="font-medium">Test Chatbot</div>
+          <p className="text-xs text-muted-foreground">
+            Sahkan API key berjaya sambung, uji balasan berdasarkan Product Knowledge, dan hantar
+            test ke nombor WhatsApp anda sendiri.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 border rounded-xl p-3 bg-muted/20">
+          <PlugZap className="w-4 h-4 text-primary" />
+          <div className="flex-1 min-w-[180px] text-sm">
+            Sambungan AI
+            {settings.data?.api_key_configured && provider !== "lovable" && (
+              <Badge variant="outline" className="ml-2 bg-success/15 text-success border-success/30">
+                Key set
+              </Badge>
+            )}
+          </div>
           <Button
             variant="outline"
-            onClick={() => testMutation.mutate()}
-            disabled={!testMsg || testMutation.isPending}
+            size="sm"
+            onClick={() => verifyMutation.mutate()}
+            disabled={!isAdmin || verifyMutation.isPending}
           >
-            <Send className="w-4 h-4 mr-2" />
-            Test
+            <CheckCircle2 className="w-4 h-4 mr-2" />
+            {verifyMutation.isPending ? "Menguji…" : "Test sambungan API key"}
           </Button>
         </div>
+
+        <div className="space-y-2">
+          <Label>Mesej customer (simulasi)</Label>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Input
+              value={testMsg}
+              onChange={(e) => setTestMsg(e.target.value)}
+              placeholder="Contoh mesej customer…"
+            />
+            <Button
+              variant="outline"
+              onClick={() => testMutation.mutate()}
+              disabled={!testMsg || testMutation.isPending}
+            >
+              <Send className="w-4 h-4 mr-2" />
+              {testMutation.isPending ? "Menjana…" : "Test balasan AI"}
+            </Button>
+          </div>
+        </div>
+
         {testResult && (
           <div className="space-y-2 bg-muted/20 rounded-lg p-3">
             {testResult.map((p, i) => (
               <div
                 key={i}
-                className="bg-primary text-primary-foreground rounded-2xl px-3 py-2 text-sm max-w-[80%]"
+                className="bg-primary text-primary-foreground rounded-2xl px-3 py-2 text-sm max-w-[80%] whitespace-pre-wrap"
               >
                 {p}
               </div>
             ))}
           </div>
         )}
+
+        <div className="border-t pt-4 space-y-3">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <MessageSquare className="w-4 h-4 text-success" />
+            Test terus ke WhatsApp saya
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <Label>Nombor WhatsApp saya</Label>
+              <Input
+                value={selfPhone}
+                onChange={(e) => setSelfPhone(e.target.value)}
+                placeholder="0123456789"
+                disabled={!isAdmin}
+              />
+            </div>
+            <div>
+              <Label>Hantar guna sender</Label>
+              <Select value={selfSenderId} onValueChange={setSelfSenderId} disabled={!isAdmin}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="auto">Auto (sender lalai)</SelectItem>
+                  {(senders.data ?? []).map((s: any) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.label ? `${s.label} — ${s.phone_number}` : s.phone_number}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <Button
+            onClick={() => waTestMutation.mutate()}
+            disabled={!isAdmin || !selfPhone || !testMsg || waTestMutation.isPending}
+          >
+            <Send className="w-4 h-4 mr-2" />
+            {waTestMutation.isPending ? "Menghantar…" : "Hantar test ke WhatsApp saya"}
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            AI akan jana balasan berdasarkan Product Knowledge di atas dan hantar ke nombor anda
+            melalui sender dipilih — cara paling pantas untuk sahkan chatbot berfungsi hujung ke hujung.
+          </p>
+        </div>
       </Card>
 
       <div className="text-xs text-muted-foreground bg-warning/10 border border-warning/30 rounded-lg p-3">
