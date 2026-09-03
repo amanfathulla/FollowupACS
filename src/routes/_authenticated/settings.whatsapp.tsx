@@ -17,6 +17,8 @@ import {
   ChevronLeft,
   ChevronRight,
   FolderOpen,
+  Webhook,
+  Copy,
 } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
@@ -42,6 +44,7 @@ import {
   listSendersLite,
   listApiLogs,
   getSchedulerInfo,
+  getWebhookStatus,
 } from "@/lib/whatsapp.functions";
 import { SendersPanel } from "@/components/whatsapp/senders-panel";
 import { SendWindowsPanel } from "@/components/whatsapp/send-windows-panel";
@@ -50,7 +53,7 @@ export const Route = createFileRoute("/_authenticated/settings/whatsapp")({
   component: WhatsappSettingsPage,
 });
 
-type SectionKey = "connection" | "scheduler" | "windows" | "senders" | "logs";
+type SectionKey = "connection" | "webhook" | "scheduler" | "windows" | "senders" | "logs";
 
 const SECTIONS: {
   key: SectionKey;
@@ -65,6 +68,13 @@ const SECTIONS: {
     desc: "API key ustazai.my, automation switch & ujian hantar.",
     icon: Plug,
     tone: "bg-whatsapp/15 text-whatsapp",
+  },
+  {
+    key: "webhook",
+    title: "Webhook Masuk",
+    desc: "URL untuk tampal dalam dashboard ustazai.my supaya balasan customer diterima.",
+    icon: Webhook,
+    tone: "bg-destructive/10 text-destructive",
   },
   {
     key: "scheduler",
@@ -146,6 +156,7 @@ function WhatsappSettingsPage() {
           </div>
 
           {section === "connection" && <ConnectionSection />}
+          {section === "webhook" && <WebhookSection />}
           {section === "scheduler" && <SchedulerSection />}
           {section === "windows" && <SendWindowsPanel />}
           {section === "senders" && <SendersPanel />}
@@ -326,6 +337,101 @@ function ConnectionSection() {
         </p>
       </div>
     </Card>
+  );
+}
+
+const WEBHOOK_PATH = "/api/public/hooks/whatsapp-webhook";
+
+function WebhookSection() {
+  const getWebhookStatusFn = useServerFn(getWebhookStatus);
+  const status = useQuery({
+    queryKey: ["webhook-status"],
+    queryFn: () => getWebhookStatusFn(),
+    refetchInterval: 15000,
+  });
+
+  const origin =
+    typeof window !== "undefined" ? window.location.origin : "https://followupacs.lovable.app";
+  const webhookUrl = `${origin}${WEBHOOK_PATH}`;
+  const publishedUrl = `https://followupacs.lovable.app${WEBHOOK_PATH}`;
+
+  const copy = (text: string) => {
+    navigator.clipboard
+      .writeText(text)
+      .then(() => toast.success("URL disalin"))
+      .catch(() => toast.error("Gagal salin — salin manual"));
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card className="space-y-4 rounded-2xl p-4 sm:p-6">
+        <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-destructive/10 text-destructive">
+            <Webhook className="h-5 w-5" />
+          </div>
+          <div className="min-w-0">
+            <div className="font-medium">Webhook Masuk (terima balasan customer)</div>
+            <div className="text-xs text-muted-foreground">
+              Tampal URL ini dalam ruangan webhook di dashboard ustazai.my untuk setiap nombor
+              sender.
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label>URL Webhook (paste dalam dashboard ustazai.my)</Label>
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+            <Input value={publishedUrl} readOnly className="bg-muted/40 font-mono text-xs" />
+            <Button variant="outline" size="icon" onClick={() => copy(publishedUrl)}>
+              <Copy className="h-4 w-4" />
+            </Button>
+          </div>
+          {webhookUrl !== publishedUrl && (
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+              <Input value={webhookUrl} readOnly className="bg-muted/40 font-mono text-xs" />
+              <Button variant="outline" size="icon" onClick={() => copy(webhookUrl)}>
+                <Copy className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground">
+            Guna URL pertama (published). URL kedua hanya untuk testing preview jika berbeza. Method:{" "}
+            <code>POST</code>. Jika ustazai.my minta verification GET, endpoint ini sedia
+            menjawab.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 border-t pt-4 sm:grid-cols-3">
+          <div className="rounded-xl border p-3">
+            <div className="text-xs text-muted-foreground">Kali terakhir mesej masuk diterima</div>
+            <div className="mt-1 text-sm font-medium">
+              {status.data?.lastHitAt
+                ? new Date(status.data.lastHitAt).toLocaleString("en-MY", {
+                    timeZone: "Asia/Kuala_Lumpur",
+                    hour12: false,
+                  })
+                : "Belum pernah terima"}
+            </div>
+          </div>
+          <div className="rounded-xl border p-3">
+            <div className="text-xs text-muted-foreground">Jumlah hit webhook</div>
+            <div className="mt-1 text-2xl font-semibold">{status.data?.totalHits ?? 0}</div>
+          </div>
+          <div className="rounded-xl border p-3">
+            <div className="text-xs text-muted-foreground">Mesej masuk disimpan</div>
+            <div className="mt-1 text-2xl font-semibold">
+              {status.data?.inboundMessages ?? 0}
+            </div>
+          </div>
+        </div>
+
+        <p className="text-xs text-muted-foreground">
+          Lepas paste URL di ustazai.my, hantar satu mesej WhatsApp ke nombor sender — jika
+          "Jumlah hit webhook" bertambah, sambungan berjaya. Jika tidak, semak semula URL yang
+          ditampal.
+        </p>
+      </Card>
+    </div>
   );
 }
 
