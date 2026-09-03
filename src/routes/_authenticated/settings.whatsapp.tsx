@@ -17,6 +17,8 @@ import {
   ChevronLeft,
   ChevronRight,
   FolderOpen,
+  Webhook,
+  Copy,
 } from "lucide-react";
 
 import { Card } from "@/components/ui/card";
@@ -42,6 +44,7 @@ import {
   listSendersLite,
   listApiLogs,
   getSchedulerInfo,
+  getWebhookStatus,
 } from "@/lib/whatsapp.functions";
 import { SendersPanel } from "@/components/whatsapp/senders-panel";
 import { SendWindowsPanel } from "@/components/whatsapp/send-windows-panel";
@@ -50,7 +53,7 @@ export const Route = createFileRoute("/_authenticated/settings/whatsapp")({
   component: WhatsappSettingsPage,
 });
 
-type SectionKey = "connection" | "scheduler" | "windows" | "senders" | "logs";
+type SectionKey = "connection" | "webhook" | "scheduler" | "windows" | "senders" | "logs";
 
 const SECTIONS: {
   key: SectionKey;
@@ -65,6 +68,13 @@ const SECTIONS: {
     desc: "API key ustazai.my, automation switch & ujian hantar.",
     icon: Plug,
     tone: "bg-whatsapp/15 text-whatsapp",
+  },
+  {
+    key: "webhook",
+    title: "Webhook Masuk",
+    desc: "URL untuk tampal dalam dashboard ustazai.my supaya balasan customer diterima.",
+    icon: Webhook,
+    tone: "bg-destructive/10 text-destructive",
   },
   {
     key: "scheduler",
@@ -146,6 +156,7 @@ function WhatsappSettingsPage() {
           </div>
 
           {section === "connection" && <ConnectionSection />}
+          {section === "webhook" && <WebhookSection />}
           {section === "scheduler" && <SchedulerSection />}
           {section === "windows" && <SendWindowsPanel />}
           {section === "senders" && <SendersPanel />}
