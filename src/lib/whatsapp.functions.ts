@@ -873,6 +873,33 @@ export const listApiLogs = createServerFn({ method: "POST" })
   });
 
 
+// Status webhook masuk: bila kali terakhir mesej masuk diterima + count.
+export const getWebhookStatus = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: last } = await context.supabase
+      .from("whatsapp_api_logs")
+      .select("created_at, phone, response_body, ok")
+      .eq("endpoint", "inbound:whatsapp-webhook")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const { count } = await context.supabase
+      .from("whatsapp_api_logs")
+      .select("id", { count: "exact", head: true })
+      .eq("endpoint", "inbound:whatsapp-webhook");
+    const { count: inboundMsgs } = await context.supabase
+      .from("lead_messages")
+      .select("id", { count: "exact", head: true })
+      .eq("direction", "inbound");
+    return {
+      lastHitAt: (last?.created_at as string) ?? null,
+      lastHitOk: (last?.ok as boolean) ?? null,
+      totalHits: count ?? 0,
+      inboundMessages: inboundMsgs ?? 0,
+    };
+  });
+
 // ---------- Waktu aktif / rehat (send windows) ----------
 
 export const listSendWindows = createServerFn({ method: "GET" })
