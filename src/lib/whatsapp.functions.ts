@@ -469,6 +469,70 @@ export const todayStats = createServerFn({ method: "GET" })
     };
   });
 
+export const getTodayBlastEvents = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const now = new Date();
+    const malaysiaParts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Kuala_Lumpur",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(now);
+    const part = (type: string) =>
+      malaysiaParts.find((item) => item.type === type)?.value ?? "";
+    const dateLabel = `${part("year")}-${part("month")}-${part("day")}`;
+    const start = new Date(`${dateLabel}T00:00:00+08:00`);
+    const end = new Date(`${dateLabel}T23:59:59.999+08:00`);
+
+    const { data: rows, error } = await context.supabase
+      .from("lead_followups")
+      .select(
+        "id, lead_id, status, scheduled_at, sent_at, step_order, day_offset, error_message, leads!inner(name, phone, product, car_model, followup_status, assigned_sender_id, whatsapp_senders(label, phone_number))",
+      )
+      .gte("scheduled_at", start.toISOString())
+      .lte("scheduled_at", end.toISOString())
+      .order("scheduled_at", { ascending: true })
+      .limit(500);
+
+    if (error) throw new Error(error.message);
+
+    const events = rows ?? [];
+    const sent = events.filter((row) => row.status === "sent").length;
+    const pending = events.filter((row) => row.status === "pending").length;
+    const failed = events.filter((row) => row.status === "failed").length;
+    const cancelled = events.filter((row) => row.status === "cancelled").length;
+    const recipientPhones = new Set(
+      events
+        .map((row) => {
+          const lead = row.leads as { phone?: string } | null;
+          return lead?.phone;
+        })
+        .filter((phone): phone is string => Boolean(phone)),
+    );
+    const processed = sent + failed;
+    const successRate = processed > 0 ? Math.round((sent / processed) * 100) : 0;
+    const nextBlast = events.find(
+      (row) => row.status === "pending" && new Date(row.scheduled_at).getTime() >= now.getTime(),
+    );
+
+    return {
+      date: dateLabel,
+      timezone: "Asia/Kuala_Lumpur",
+      summary: {
+        scheduled: events.length,
+        sent,
+        pending,
+        failed,
+        cancelled,
+        successRate,
+        uniqueRecipients: recipientPhones.size,
+      },
+      nextBlast: nextBlast ?? null,
+      events,
+    };
+  });
+
 export const cancelFollowup = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { id: string }) => z.object({ id: z.string().uuid() }).parse(d))
