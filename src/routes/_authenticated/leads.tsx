@@ -1176,6 +1176,260 @@ function LeadsPage() {
   );
 }
 
+function formatMalaysiaDateTime(value: string | null | undefined) {
+  if (!value) return "—";
+  return new Intl.DateTimeFormat("ms-MY", {
+    timeZone: "Asia/Kuala_Lumpur",
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date(value));
+}
+
+function TodayBlastEvents({ data, isLoading }: { data: any; isLoading: boolean }) {
+  const summary = data?.summary;
+  const events = data?.events ?? [];
+  const next = data?.nextBlast;
+  const nextLead = next?.leads;
+  const nextSender = nextLead?.whatsapp_senders;
+
+  const cards = [
+    {
+      label: "Dijadualkan",
+      value: summary?.scheduled ?? 0,
+      note: "Semua event hari ini",
+      icon: CalendarDays,
+      card: "bg-stat-1",
+      iconClass: "bg-info text-info-foreground",
+    },
+    {
+      label: "Berjaya dihantar",
+      value: summary?.sent ?? 0,
+      note: "Mesej selesai diproses",
+      icon: CheckCircle2,
+      card: "bg-stat-2",
+      iconClass: "bg-success text-success-foreground",
+    },
+    {
+      label: "Masih menunggu",
+      value: summary?.pending ?? 0,
+      note: "Akan dihantar automatik",
+      icon: Clock3,
+      card: "bg-stat-3",
+      iconClass: "bg-warning text-warning-foreground",
+    },
+    {
+      label: "Gagal dihantar",
+      value: summary?.failed ?? 0,
+      note: "Perlu semakan",
+      icon: XCircle,
+      card: "bg-stat-5",
+      iconClass: "bg-destructive text-destructive-foreground",
+    },
+    {
+      label: "Kadar kejayaan",
+      value: `${summary?.successRate ?? 0}%`,
+      note: "Daripada event diproses",
+      icon: Target,
+      card: "bg-stat-4",
+      iconClass: "bg-violet text-violet-foreground",
+    },
+    {
+      label: "Nombor unik",
+      value: summary?.uniqueRecipients ?? 0,
+      note: "Penerima dijadualkan",
+      icon: Phone,
+      card: "bg-stat-6",
+      iconClass: "bg-whatsapp text-whatsapp-foreground",
+    },
+  ];
+
+  return (
+    <div className="space-y-4 pt-2">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2 className="text-lg font-semibold">Statistik Blast Harian</h2>
+          <p className="text-sm text-muted-foreground">
+            Rekod {data?.date ?? "hari ini"} mengikut waktu Malaysia.
+          </p>
+        </div>
+        <Badge variant="outline" className="w-fit bg-card">
+          <Activity className="mr-1.5 h-3.5 w-3.5 text-success" />
+          Auto kemas kini · Asia/Kuala_Lumpur
+        </Badge>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
+        {cards.map((item) => {
+          const Icon = item.icon;
+          return (
+            <Card key={item.label} className={`border-0 p-4 ${item.card}`}>
+              <div className={`mb-4 grid h-9 w-9 place-items-center rounded-lg ${item.iconClass}`}>
+                <Icon className="h-4 w-4" />
+              </div>
+              <div className="text-2xl font-semibold">{isLoading ? "—" : item.value}</div>
+              <div className="mt-1 text-xs font-medium">{item.label}</div>
+              <div className="mt-1 text-[11px] text-foreground/55">{item.note}</div>
+            </Card>
+          );
+        })}
+      </div>
+
+      <Card className="overflow-hidden border-0 bg-primary text-primary-foreground">
+        <div className="grid gap-5 p-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 text-xs font-medium text-primary-foreground/70">
+              <Clock3 className="h-4 w-4" /> NEXT BLAST
+            </div>
+            {isLoading ? (
+              <div className="mt-3 text-sm text-primary-foreground/70">Memuatkan jadual…</div>
+            ) : next ? (
+              <>
+                <div className="mt-2 text-xl font-semibold">
+                  {formatMalaysiaDateTime(next.scheduled_at)}
+                </div>
+                <div className="mt-1 truncate text-sm text-primary-foreground/80">
+                  {nextLead?.name ?? "—"} · {nextLead?.phone ?? "—"}
+                </div>
+              </>
+            ) : (
+              <div className="mt-3 text-sm text-primary-foreground/70">
+                Tiada lagi blast dijadualkan untuk hari ini.
+              </div>
+            )}
+          </div>
+          {next && (
+            <div className="grid grid-cols-2 gap-x-6 gap-y-3 border-primary-foreground/20 text-sm md:border-l md:pl-6">
+              <div>
+                <div className="text-xs text-primary-foreground/60">Followup</div>
+                <div className="mt-0.5 font-medium">D{next.day_offset ?? 0}</div>
+              </div>
+              <div>
+                <div className="text-xs text-primary-foreground/60">Sender</div>
+                <div className="mt-0.5 font-medium">{nextSender?.label ?? "Auto"}</div>
+              </div>
+              <div className="col-span-2">
+                <div className="text-xs text-primary-foreground/60">Nombor sender</div>
+                <div className="mt-0.5 font-mono text-xs">{nextSender?.phone_number ?? "Belum diagih"}</div>
+              </div>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      <Card className="overflow-hidden">
+        <div className="border-b border-border p-4">
+          <div className="font-medium">Rekod Event Hari Ini</div>
+          <div className="text-xs text-muted-foreground">
+            Setiap rekod ialah satu mesej followup automatik untuk lead aktif.
+          </div>
+        </div>
+
+        <div className="divide-y divide-border md:hidden">
+          {events.map((event: any) => {
+            const lead = event.leads;
+            const sender = lead?.whatsapp_senders;
+            return (
+              <div key={event.id} className="space-y-3 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="truncate font-medium">{lead?.name ?? "—"}</div>
+                    <div className="mt-0.5 font-mono text-xs text-muted-foreground">{lead?.phone ?? "—"}</div>
+                  </div>
+                  <Badge variant="outline" className={FU_STATUS_COLOR[event.status]}>
+                    {event.status}
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <EventField label="Jadual" value={formatMalaysiaDateTime(event.scheduled_at)} />
+                  <EventField label="Dihantar" value={formatMalaysiaDateTime(event.sent_at)} />
+                  <EventField label="Followup" value={`D${event.day_offset ?? 0}`} />
+                  <EventField label="Sender" value={sender?.label ?? "Belum diagih"} />
+                </div>
+                {event.error_message && (
+                  <div className="rounded-md bg-destructive/10 p-2 text-xs text-destructive">
+                    {event.error_message}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="hidden overflow-x-auto md:block">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
+              <tr>
+                <th className="px-4 py-3 text-left">Penerima</th>
+                <th className="px-4 py-3 text-left">Sender</th>
+                <th className="px-4 py-3 text-left">Followup</th>
+                <th className="px-4 py-3 text-left">Waktu dijadualkan</th>
+                <th className="px-4 py-3 text-left">Waktu dihantar</th>
+                <th className="px-4 py-3 text-left">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {events.map((event: any) => {
+                const lead = event.leads;
+                const sender = lead?.whatsapp_senders;
+                return (
+                  <tr key={event.id} className="border-t border-border align-top">
+                    <td className="px-4 py-3">
+                      <div className="font-medium">{lead?.name ?? "—"}</div>
+                      <div className="font-mono text-xs text-muted-foreground">{lead?.phone ?? "—"}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div>{sender?.label ?? "Belum diagih"}</div>
+                      <div className="font-mono text-xs text-muted-foreground">{sender?.phone_number ?? "—"}</div>
+                    </td>
+                    <td className="px-4 py-3 font-mono">D{event.day_offset ?? 0}</td>
+                    <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
+                      {formatMalaysiaDateTime(event.scheduled_at)}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
+                      {formatMalaysiaDateTime(event.sent_at)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge variant="outline" className={FU_STATUS_COLOR[event.status]}>
+                        {event.status}
+                      </Badge>
+                      {event.error_message && (
+                        <div className="mt-1 max-w-52 text-xs text-destructive">{event.error_message}</div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {!isLoading && events.length === 0 && (
+          <div className="px-4 py-12 text-center">
+            <CalendarDays className="mx-auto h-8 w-8 text-muted-foreground/50" />
+            <div className="mt-3 text-sm font-medium">Tiada event blast hari ini</div>
+            <div className="mt-1 text-xs text-muted-foreground">
+              Event akan muncul apabila lead aktif mempunyai mesej followup untuk hari ini.
+            </div>
+          </div>
+        )}
+        {isLoading && <div className="px-4 py-12 text-center text-sm text-muted-foreground">Memuatkan rekod…</div>}
+      </Card>
+    </div>
+  );
+}
+
+function EventField({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-muted-foreground">{label}</div>
+      <div className="mt-0.5 font-medium">{value}</div>
+    </div>
+  );
+}
+
 // ---------- Followup Board (per-sender) ----------
 
 function FollowupBoard(props: {
