@@ -23,6 +23,11 @@ import {
   ArrowLeft,
   Wifi,
   WifiOff,
+  CalendarDays,
+  Clock3,
+  Target,
+  Activity,
+  Phone,
 } from "lucide-react";
 import {
   BarChart,
@@ -74,10 +79,27 @@ import {
   updateSettings,
   getMyRole,
   getFollowupBoard,
+  getTodayBlastEvents,
 } from "@/lib/whatsapp.functions";
 import { listSenders } from "@/lib/senders.functions";
 
 export const Route = createFileRoute("/_authenticated/leads")({
+  head: () => ({
+    meta: [
+      { title: "Dashboard Utama | ACS CRM" },
+      {
+        name: "description",
+        content: "Pantau lead, event blast harian dan followup WhatsApp dalam Dashboard Utama ACS CRM.",
+      },
+      { property: "og:title", content: "Dashboard Utama | ACS CRM" },
+      {
+        property: "og:description",
+        content: "Pantau lead, event blast harian dan followup WhatsApp ACS CRM.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: LeadsPage,
 });
 
@@ -224,6 +246,7 @@ function LeadsPage() {
   const updateSettingsFn = useServerFn(updateSettings);
   const getMyRoleFn = useServerFn(getMyRole);
   const listSendersFn = useServerFn(listSenders);
+  const getTodayBlastEventsFn = useServerFn(getTodayBlastEvents);
 
 
   const stats = useQuery({ queryKey: ["stats"], queryFn: () => todayStatsFn() });
@@ -234,6 +257,11 @@ function LeadsPage() {
   });
   const settings = useQuery({ queryKey: ["settings"], queryFn: () => getSettingsFn() });
   const me = useQuery({ queryKey: ["me"], queryFn: () => getMyRoleFn() });
+  const todayEvents = useQuery({
+    queryKey: ["today-blast-events"],
+    queryFn: () => getTodayBlastEventsFn(),
+    refetchInterval: 30_000,
+  });
 
   const [openLead, setOpenLead] = useState(false);
   const [openImport, setOpenImport] = useState(false);
@@ -465,9 +493,9 @@ function LeadsPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Lead Management</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Dashboard Utama</h1>
           <p className="text-sm text-muted-foreground">
-            Urus semua lead dan pantau jadual WhatsApp followup.
+            Urus lead dan pantau aktiviti blast WhatsApp setiap hari.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -827,12 +855,17 @@ function LeadsPage() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="whatsapp">
-        <TabsList>
+      <Tabs defaultValue="event">
+        <TabsList className="h-auto w-full justify-start overflow-x-auto p-1 sm:w-auto">
+          <TabsTrigger value="event">Event Hari Ini</TabsTrigger>
           <TabsTrigger value="graph">Graf</TabsTrigger>
           <TabsTrigger value="list">Senarai Lead</TabsTrigger>
           <TabsTrigger value="whatsapp">WhatsApp Followup</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="event">
+          <TodayBlastEvents data={todayEvents.data} isLoading={todayEvents.isLoading} />
+        </TabsContent>
 
         <TabsContent value="graph">
           <Card className="p-6 rounded-2xl">

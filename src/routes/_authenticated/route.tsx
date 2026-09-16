@@ -34,7 +34,7 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 const NAV = [
-  { to: "/leads", label: "Lead Management", icon: Users },
+  { to: "/leads", label: "Dashboard Utama", icon: LayoutDashboard },
   { to: "/livechat", label: "Live Chat", icon: MessagesSquare },
   { to: "/settings/whatsapp", label: "WhatsApp Automation", icon: Settings },
   { to: "/settings/messages", label: "Borang Mesej Harian", icon: MessageSquareText },
