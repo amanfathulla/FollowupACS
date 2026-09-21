@@ -67,6 +67,16 @@
   --color-stat-4: var(--stat-4);
   --color-stat-5: var(--stat-5);
   --color-stat-6: var(--stat-6);
+  --color-phone-frame: var(--phone-frame);
+  --color-chat-header: var(--chat-header);
+  --color-chat-header-foreground: var(--chat-header-foreground);
+  --color-chat-wallpaper: var(--chat-wallpaper);
+  --color-chat-bubble: var(--chat-bubble);
+  --color-chat-bubble-foreground: var(--chat-bubble-foreground);
+  --color-chat-input: var(--chat-input);
+  --color-chat-meta: var(--chat-meta);
+  --color-chat-avatar: var(--chat-avatar);
+  --color-chat-media: var(--chat-media);
 }
 
 :root {
@@ -130,6 +140,16 @@
   --stat-4: oklch(0.94 0.08 300);                  /* violet */
   --stat-5: oklch(0.94 0.06 20);                   /* rose */
   --stat-6: oklch(0.94 0.06 200);                  /* cyan */
+  --phone-frame: oklch(0.18 0.01 260);
+  --chat-header: oklch(0.42 0.11 174);
+  --chat-header-foreground: oklch(0.99 0 0);
+  --chat-wallpaper: oklch(0.91 0.018 84);
+  --chat-bubble: oklch(0.93 0.09 142);
+  --chat-bubble-foreground: oklch(0.23 0.02 155);
+  --chat-input: oklch(1 0 0);
+  --chat-meta: oklch(0.52 0.015 260);
+  --chat-avatar: oklch(0.75 0.04 174);
+  --chat-media: oklch(0.88 0.04 142);
 }
 
 .dark {
@@ -166,6 +186,16 @@
   --sidebar-accent-foreground: oklch(0.98 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.55 0.13 260);
+  --phone-frame: oklch(0.08 0.01 260);
+  --chat-header: oklch(0.35 0.09 174);
+  --chat-header-foreground: oklch(0.99 0 0);
+  --chat-wallpaper: oklch(0.22 0.015 84);
+  --chat-bubble: oklch(0.36 0.08 145);
+  --chat-bubble-foreground: oklch(0.97 0 0);
+  --chat-input: oklch(0.28 0.015 260);
+  --chat-meta: oklch(0.7 0.01 260);
+  --chat-avatar: oklch(0.5 0.05 174);
+  --chat-media: oklch(0.3 0.04 145);
 }
 
 @layer base {
