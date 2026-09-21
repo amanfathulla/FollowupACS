@@ -12,6 +12,16 @@ import {
   Upload,
   ImageIcon,
   X,
+  Phone,
+  Video,
+  MoreVertical,
+  Smile,
+  Paperclip,
+  Mic,
+  CheckCheck,
+  FileText,
+  Music2,
+  Clock3,
 } from "lucide-react";
 
 
@@ -51,6 +61,22 @@ import {
 
 export const Route = createFileRoute("/_authenticated/settings/messages")({
   component: MessagesPage,
+  head: () => ({
+    meta: [
+      { title: "Borang Mesej Harian — ACS CRM" },
+      {
+        name: "description",
+        content: "Susun dan pratonton mesej WhatsApp automatik mengikut hari.",
+      },
+      { property: "og:title", content: "Borang Mesej Harian — ACS CRM" },
+      {
+        property: "og:description",
+        content: "Susun dan pratonton mesej WhatsApp automatik mengikut hari.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
 });
 
 const MEDIA_TYPES = ["image", "video", "audio", "document"] as const;
@@ -75,7 +101,10 @@ function MessagesPage() {
   );
   const steps = useQuery({
     queryKey: ["steps", activeSequence?.id],
-    queryFn: () => listStepsFn({ data: { sequenceId: activeSequence!.id } }),
+    queryFn: () => {
+      if (!activeSequence?.id) return Promise.resolve([]);
+      return listStepsFn({ data: { sequenceId: activeSequence.id } });
+    },
     enabled: !!activeSequence?.id,
   });
 
@@ -166,16 +195,18 @@ function MessagesPage() {
   }
 
   const updateStepMutation = useMutation({
-    mutationFn: () =>
-      updateStepFn({
+    mutationFn: () => {
+      if (!selectedStepId) throw new Error("Pilih hari dahulu");
+      return updateStepFn({
         data: {
-          id: selectedStepId!,
+          id: selectedStepId,
           message_template: draftMessage,
           day_offset: draftDay,
           media_type: messageMode === "media" ? mediaType : null,
           media_url: messageMode === "media" ? mediaPath : null,
         },
-      }),
+      });
+    },
     onSuccess: () => {
       toast.success("Mesej disimpan");
       qc.invalidateQueries({ queryKey: ["steps"] });
@@ -188,8 +219,10 @@ function MessagesPage() {
   const [newMessage, setNewMessage] = useState("Salam {{nama}}, ...");
 
   const addStepMutation = useMutation({
-    mutationFn: (v: { day_offset: number; message_template: string }) =>
-      addStepFn({ data: { sequenceId: activeSequence!.id, ...v } }),
+    mutationFn: (v: { day_offset: number; message_template: string }) => {
+      if (!activeSequence?.id) throw new Error("Sequence belum ada");
+      return addStepFn({ data: { sequenceId: activeSequence.id, ...v } });
+    },
     onSuccess: (created: any) => {
       toast.success("Langkah ditambah");
       qc.invalidateQueries({ queryKey: ["steps"] });
@@ -208,6 +241,10 @@ function MessagesPage() {
   });
 
   const selectedStep = steps.data?.find((x: any) => x.id === selectedStepId);
+  const previewMessage = MESSAGE_PLACEHOLDERS.reduce(
+    (message, placeholder) => message.split(placeholder.token).join(placeholder.example),
+    draftMessage,
+  );
 
   return (
     <div className="space-y-6">
