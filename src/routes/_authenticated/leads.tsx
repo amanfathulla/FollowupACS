@@ -1201,7 +1201,7 @@ function TodayBlastEvents({ data, isLoading }: { data: any; isLoading: boolean }
       value: summary?.scheduled ?? 0,
       note: "Semua event hari ini",
       icon: CalendarDays,
-      card: "bg-stat-1",
+      sphere: "bg-stat-1 ring-info/20",
       iconClass: "bg-info text-info-foreground",
     },
     {
@@ -1209,7 +1209,7 @@ function TodayBlastEvents({ data, isLoading }: { data: any; isLoading: boolean }
       value: summary?.sent ?? 0,
       note: "Mesej selesai diproses",
       icon: CheckCircle2,
-      card: "bg-stat-2",
+      sphere: "bg-stat-2 ring-success/20",
       iconClass: "bg-success text-success-foreground",
     },
     {
@@ -1217,7 +1217,7 @@ function TodayBlastEvents({ data, isLoading }: { data: any; isLoading: boolean }
       value: summary?.pending ?? 0,
       note: "Akan dihantar automatik",
       icon: Clock3,
-      card: "bg-stat-3",
+      sphere: "bg-stat-3 ring-warning/25",
       iconClass: "bg-warning text-warning-foreground",
     },
     {
@@ -1225,7 +1225,7 @@ function TodayBlastEvents({ data, isLoading }: { data: any; isLoading: boolean }
       value: summary?.failed ?? 0,
       note: "Perlu semakan",
       icon: XCircle,
-      card: "bg-stat-5",
+      sphere: "bg-stat-5 ring-destructive/20",
       iconClass: "bg-destructive text-destructive-foreground",
     },
     {
@@ -1233,7 +1233,7 @@ function TodayBlastEvents({ data, isLoading }: { data: any; isLoading: boolean }
       value: `${summary?.successRate ?? 0}%`,
       note: "Daripada event diproses",
       icon: Target,
-      card: "bg-stat-4",
+      sphere: "bg-stat-4 ring-violet/20",
       iconClass: "bg-violet text-violet-foreground",
     },
     {
@@ -1241,7 +1241,7 @@ function TodayBlastEvents({ data, isLoading }: { data: any; isLoading: boolean }
       value: summary?.uniqueRecipients ?? 0,
       note: "Penerima dijadualkan",
       icon: Phone,
-      card: "bg-stat-6",
+      sphere: "bg-stat-6 ring-whatsapp/20",
       iconClass: "bg-whatsapp text-whatsapp-foreground",
     },
   ];
@@ -1261,18 +1261,24 @@ function TodayBlastEvents({ data, isLoading }: { data: any; isLoading: boolean }
         </Badge>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 lg:grid-cols-6">
         {cards.map((item) => {
           const Icon = item.icon;
           return (
-            <Card key={item.label} className={`border-0 p-4 ${item.card}`}>
-              <div className={`mb-4 grid h-9 w-9 place-items-center rounded-lg ${item.iconClass}`}>
-                <Icon className="h-4 w-4" />
+            <div key={item.label} className="flex min-w-0 flex-col items-center text-center">
+              <div
+                className={`flex aspect-square w-full max-w-36 flex-col items-center justify-center rounded-full ring-8 shadow-sm ${item.sphere}`}
+              >
+                <div className={`mb-2 grid h-8 w-8 place-items-center rounded-full ${item.iconClass}`}>
+                  <Icon className="h-4 w-4" />
+                </div>
+                <div className="text-2xl font-semibold leading-none sm:text-3xl">
+                  {isLoading ? "—" : item.value}
+                </div>
               </div>
-              <div className="text-2xl font-semibold">{isLoading ? "—" : item.value}</div>
-              <div className="mt-1 text-xs font-medium">{item.label}</div>
-              <div className="mt-1 text-[11px] text-foreground/55">{item.note}</div>
-            </Card>
+              <div className="mt-3 text-xs font-semibold sm:text-sm">{item.label}</div>
+              <div className="mt-0.5 max-w-36 text-[11px] leading-4 text-muted-foreground">{item.note}</div>
+            </div>
           );
         })}
       </div>
