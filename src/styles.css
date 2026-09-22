@@ -213,3 +213,14 @@
     color: var(--color-foreground);
   }
 }
+
+@utility blast-stat-wheel {
+  background: conic-gradient(
+    var(--color-info) 0deg 60deg,
+    var(--color-success) 60deg 120deg,
+    var(--color-warning) 120deg 180deg,
+    var(--color-destructive) 180deg 240deg,
+    var(--color-violet) 240deg 300deg,
+    var(--color-whatsapp) 300deg 360deg
+  );
+}

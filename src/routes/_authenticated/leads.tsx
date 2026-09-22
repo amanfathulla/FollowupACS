@@ -1201,7 +1201,7 @@ function TodayBlastEvents({ data, isLoading }: { data: any; isLoading: boolean }
       value: summary?.scheduled ?? 0,
       note: "Semua event hari ini",
       icon: CalendarDays,
-      sphere: "bg-stat-1 ring-info/20",
+      marker: "bg-info",
       iconClass: "bg-info text-info-foreground",
     },
     {
@@ -1209,7 +1209,7 @@ function TodayBlastEvents({ data, isLoading }: { data: any; isLoading: boolean }
       value: summary?.sent ?? 0,
       note: "Mesej selesai diproses",
       icon: CheckCircle2,
-      sphere: "bg-stat-2 ring-success/20",
+      marker: "bg-success",
       iconClass: "bg-success text-success-foreground",
     },
     {
@@ -1217,7 +1217,7 @@ function TodayBlastEvents({ data, isLoading }: { data: any; isLoading: boolean }
       value: summary?.pending ?? 0,
       note: "Akan dihantar automatik",
       icon: Clock3,
-      sphere: "bg-stat-3 ring-warning/25",
+      marker: "bg-warning",
       iconClass: "bg-warning text-warning-foreground",
     },
     {
@@ -1225,7 +1225,7 @@ function TodayBlastEvents({ data, isLoading }: { data: any; isLoading: boolean }
       value: summary?.failed ?? 0,
       note: "Perlu semakan",
       icon: XCircle,
-      sphere: "bg-stat-5 ring-destructive/20",
+      marker: "bg-destructive",
       iconClass: "bg-destructive text-destructive-foreground",
     },
     {
@@ -1233,7 +1233,7 @@ function TodayBlastEvents({ data, isLoading }: { data: any; isLoading: boolean }
       value: `${summary?.successRate ?? 0}%`,
       note: "Daripada event diproses",
       icon: Target,
-      sphere: "bg-stat-4 ring-violet/20",
+      marker: "bg-violet",
       iconClass: "bg-violet text-violet-foreground",
     },
     {
@@ -1241,7 +1241,7 @@ function TodayBlastEvents({ data, isLoading }: { data: any; isLoading: boolean }
       value: summary?.uniqueRecipients ?? 0,
       note: "Penerima dijadualkan",
       icon: Phone,
-      sphere: "bg-stat-6 ring-whatsapp/20",
+      marker: "bg-whatsapp",
       iconClass: "bg-whatsapp text-whatsapp-foreground",
     },
   ];
@@ -1261,27 +1261,48 @@ function TodayBlastEvents({ data, isLoading }: { data: any; isLoading: boolean }
         </Badge>
       </div>
 
-      <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 lg:grid-cols-6">
-        {cards.map((item) => {
-          const Icon = item.icon;
-          return (
-            <div key={item.label} className="flex min-w-0 flex-col items-center text-center">
-              <div
-                className={`flex aspect-square w-full max-w-36 flex-col items-center justify-center rounded-full ring-8 shadow-sm ${item.sphere}`}
-              >
-                <div className={`mb-2 grid h-8 w-8 place-items-center rounded-full ${item.iconClass}`}>
-                  <Icon className="h-4 w-4" />
-                </div>
-                <div className="text-2xl font-semibold leading-none sm:text-3xl">
-                  {isLoading ? "—" : item.value}
+      <Card className="overflow-hidden">
+        <div className="grid gap-6 p-4 sm:p-6 lg:grid-cols-[minmax(260px,0.8fr)_minmax(0,1.4fr)] lg:items-center">
+          <div className="flex justify-center">
+            <div className="blast-stat-wheel relative grid aspect-square w-full max-w-72 place-items-center rounded-full shadow-sm">
+              <div className="grid aspect-square w-[58%] place-items-center rounded-full border border-border bg-card text-center shadow-sm">
+                <div>
+                  <div className="text-4xl font-semibold leading-none sm:text-5xl">
+                    {isLoading ? "—" : summary?.scheduled ?? 0}
+                  </div>
+                  <div className="mt-2 text-xs font-semibold uppercase text-muted-foreground">
+                    Rekod hari ini
+                  </div>
                 </div>
               </div>
-              <div className="mt-3 text-xs font-semibold sm:text-sm">{item.label}</div>
-              <div className="mt-0.5 max-w-36 text-[11px] leading-4 text-muted-foreground">{item.note}</div>
             </div>
-          );
-        })}
-      </div>
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-2">
+            {cards.map((item) => {
+              const Icon = item.icon;
+              return (
+                <div
+                  key={item.label}
+                  className="flex min-w-0 items-center gap-3 rounded-lg border border-border bg-background p-3"
+                >
+                  <div className={`h-10 w-1.5 shrink-0 rounded-full ${item.marker}`} />
+                  <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${item.iconClass}`}>
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-semibold">{item.label}</div>
+                    <div className="truncate text-xs text-muted-foreground">{item.note}</div>
+                  </div>
+                  <div className="shrink-0 text-xl font-semibold">
+                    {isLoading ? "—" : item.value}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </Card>
 
       <Card className="overflow-hidden border-0 bg-primary text-primary-foreground">
         <div className="grid gap-5 p-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
