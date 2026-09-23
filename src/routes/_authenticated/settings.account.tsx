@@ -66,16 +66,16 @@ function AccountSettingsPage() {
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <div>
+      <div className="page-heading">
         <h1 className="text-2xl font-semibold tracking-tight">Setting Akaun</h1>
         <p className="text-sm text-muted-foreground">
           Tukar emel dan kata laluan akaun anda.
         </p>
       </div>
 
-      <Card className="p-6 rounded-2xl space-y-3">
+      <Card className="p-6 rounded-lg space-y-3 border-t-2 border-t-obsidian">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+          <div className="w-10 h-10 rounded-lg bg-obsidian text-obsidian-foreground flex items-center justify-center">
             <ShieldCheck className="w-5 h-5" />
           </div>
           <div>
@@ -96,7 +96,7 @@ function AccountSettingsPage() {
         </div>
       </Card>
 
-      <Card className="p-6 rounded-2xl space-y-4">
+      <Card className="p-6 rounded-lg space-y-4 border-t-2 border-t-crimson">
         <div className="flex items-center gap-2 font-medium">
           <Mail className="w-4 h-4" /> Tukar emel
         </div>
@@ -118,7 +118,7 @@ function AccountSettingsPage() {
         </Button>
       </Card>
 
-      <Card className="p-6 rounded-2xl space-y-4">
+      <Card className="p-6 rounded-lg space-y-4 border-t-2 border-t-obsidian">
         <div className="flex items-center gap-2 font-medium">
           <KeyRound className="w-4 h-4" /> Tukar kata laluan
         </div>

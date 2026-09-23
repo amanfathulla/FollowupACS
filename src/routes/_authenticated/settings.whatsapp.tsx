@@ -51,6 +51,16 @@ import { SendWindowsPanel } from "@/components/whatsapp/send-windows-panel";
 
 export const Route = createFileRoute("/_authenticated/settings/whatsapp")({
   component: WhatsappSettingsPage,
+  head: () => ({
+    meta: [
+      { title: "WhatsApp Automation | ACS CRM" },
+      { name: "description", content: "Urus sambungan, sender, webhook dan jadual WhatsApp ACS CRM." },
+      { property: "og:title", content: "WhatsApp Automation | ACS CRM" },
+      { property: "og:description", content: "Urus sambungan, sender, webhook dan jadual WhatsApp ACS CRM." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
 });
 
 type SectionKey = "connection" | "webhook" | "scheduler" | "windows" | "senders" | "logs";
@@ -67,42 +77,42 @@ const SECTIONS: {
     title: "Sambungan API",
     desc: "API key ustazai.my, automation switch & ujian hantar.",
     icon: Plug,
-    tone: "bg-whatsapp/15 text-whatsapp",
+     tone: "bg-obsidian text-obsidian-foreground",
   },
   {
     key: "webhook",
     title: "Webhook Masuk",
     desc: "URL untuk tampal dalam dashboard ustazai.my supaya balasan customer diterima.",
     icon: Webhook,
-    tone: "bg-destructive/10 text-destructive",
+     tone: "bg-crimson text-crimson-foreground",
   },
   {
     key: "scheduler",
     title: "Status Scheduler",
     desc: "Timezone server, jadual 1 jam berikutnya & overdue.",
     icon: Clock,
-    tone: "bg-primary/10 text-primary",
+     tone: "bg-obsidian text-obsidian-foreground",
   },
   {
     key: "windows",
     title: "Waktu Aktif & Rehat",
     desc: "Set jam aktif setiap hari dan hari rehat.",
     icon: CalendarClock,
-    tone: "bg-info/15 text-info",
+     tone: "bg-crimson text-crimson-foreground",
   },
   {
     key: "senders",
     title: "Nombor Sender",
     desc: "Senarai nombor WhatsApp, status sambungan & had harian.",
     icon: Smartphone,
-    tone: "bg-success/15 text-success",
+     tone: "bg-obsidian text-obsidian-foreground",
   },
   {
     key: "logs",
     title: "Log Panggilan API",
     desc: "Request, HTTP status & respons ustazai.my.",
     icon: ScrollText,
-    tone: "bg-muted text-muted-foreground",
+     tone: "bg-crimson text-crimson-foreground",
   },
 ];
 
@@ -112,7 +122,7 @@ function WhatsappSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="min-w-0">
+       <div className="page-heading min-w-0">
         <h1 className="truncate text-xl font-semibold tracking-tight sm:text-2xl">
           WhatsApp Automation
         </h1>
@@ -128,7 +138,7 @@ function WhatsappSettingsPage() {
               key={s.key}
               type="button"
               onClick={() => setSection(s.key)}
-              className="group rounded-2xl border bg-card p-5 text-left transition hover:border-primary/40 hover:shadow-md"
+               className="group rounded-lg border border-border bg-card p-5 text-left transition hover:border-crimson/50 hover:shadow-md"
             >
               <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
                 <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl ${s.tone}`}>

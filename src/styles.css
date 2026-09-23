@@ -60,6 +60,14 @@
   --color-info-foreground: var(--info-foreground);
   --color-violet: var(--violet);
   --color-violet-foreground: var(--violet-foreground);
+  --color-obsidian: var(--obsidian);
+  --color-obsidian-foreground: var(--obsidian-foreground);
+  --color-crimson: var(--crimson);
+  --color-crimson-foreground: var(--crimson-foreground);
+  --color-prospect: var(--prospect);
+  --color-prospect-foreground: var(--prospect-foreground);
+  --color-converted: var(--converted);
+  --color-converted-foreground: var(--converted-foreground);
 
   --color-stat-1: var(--stat-1);
   --color-stat-2: var(--stat-2);
@@ -89,7 +97,7 @@
   --card-foreground: oklch(0.24 0.03 265);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.24 0.03 265);
-  --primary: oklch(0.42 0.15 260);                /* brand blue */
+  --primary: oklch(0.51 0.2 25);                  /* crimson action */
   --primary-foreground: oklch(0.99 0 0);
   --secondary: oklch(0.955 0.008 264);
   --secondary-foreground: oklch(0.24 0.03 265);
@@ -101,7 +109,7 @@
   --destructive-foreground: oklch(0.99 0 0);
   --border: oklch(0.92 0.008 260);
   --input: oklch(0.92 0.008 260);
-  --ring: oklch(0.55 0.13 260);
+  --ring: oklch(0.58 0.2 25);
   --chart-1: oklch(0.55 0.18 260);
   --chart-2: oklch(0.68 0.17 155);
   --chart-3: oklch(0.72 0.18 45);
@@ -111,16 +119,16 @@
   /* Full black sidebar */
   --sidebar: oklch(0 0 0);
   --sidebar-foreground: oklch(0.95 0 0);
-  --sidebar-primary: oklch(0.55 0.18 260);
+  --sidebar-primary: oklch(0.58 0.2 25);
   --sidebar-primary-foreground: oklch(0.99 0 0);
   --sidebar-accent: oklch(0.22 0 0);
   --sidebar-accent-foreground: oklch(0.99 0 0);
   --sidebar-border: oklch(1 0 0 / 12%);
-  --sidebar-ring: oklch(0.55 0.18 260);
+  --sidebar-ring: oklch(0.58 0.2 25);
 
 
   /* Semantic accent tokens */
-  --brand: oklch(0.42 0.15 260);
+  --brand: oklch(0.51 0.2 25);
   --brand-foreground: oklch(0.99 0 0);
   --whatsapp: oklch(0.7 0.17 155);                 /* #22C069-ish */
   --whatsapp-foreground: oklch(0.99 0 0);
@@ -132,6 +140,14 @@
   --info-foreground: oklch(0.99 0 0);
   --violet: oklch(0.6 0.2 300);
   --violet-foreground: oklch(0.99 0 0);
+  --obsidian: oklch(0.16 0.006 25);
+  --obsidian-foreground: oklch(0.98 0.004 25);
+  --crimson: oklch(0.51 0.2 25);
+  --crimson-foreground: oklch(0.99 0 0);
+  --prospect: var(--obsidian);
+  --prospect-foreground: var(--obsidian-foreground);
+  --converted: var(--crimson);
+  --converted-foreground: var(--crimson-foreground);
 
   /* Stat card fills (pastel) */
   --stat-1: oklch(0.94 0.05 260);                  /* blue */
@@ -159,8 +175,8 @@
   --card-foreground: oklch(0.98 0 0);
   --popover: oklch(0.2 0.03 265);
   --popover-foreground: oklch(0.98 0 0);
-  --primary: oklch(0.7 0.15 260);
-  --primary-foreground: oklch(0.15 0.02 265);
+  --primary: oklch(0.67 0.19 25);
+  --primary-foreground: oklch(0.12 0.01 25);
   --secondary: oklch(0.25 0.03 265);
   --secondary-foreground: oklch(0.98 0 0);
   --muted: oklch(0.25 0.03 265);
@@ -171,7 +187,7 @@
   --destructive-foreground: oklch(0.98 0 0);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.55 0.13 260);
+  --ring: oklch(0.67 0.19 25);
   --chart-1: oklch(0.55 0.24 260);
   --chart-2: oklch(0.7 0.17 155);
   --chart-3: oklch(0.72 0.18 45);
@@ -179,13 +195,21 @@
   --chart-5: oklch(0.66 0.22 20);
   --sidebar: oklch(0 0 0);
   --sidebar-foreground: oklch(0.95 0 0);
-  --sidebar-primary: oklch(0.55 0.18 260);
+  --sidebar-primary: oklch(0.67 0.19 25);
 
   --sidebar-accent: oklch(0.22 0 0);
   --sidebar-accent: oklch(0.28 0.04 265);
   --sidebar-accent-foreground: oklch(0.98 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.55 0.13 260);
+  --sidebar-ring: oklch(0.67 0.19 25);
+  --obsidian: oklch(0.1 0.004 25);
+  --obsidian-foreground: oklch(0.98 0.004 25);
+  --crimson: oklch(0.64 0.2 25);
+  --crimson-foreground: oklch(0.99 0 0);
+  --prospect: var(--obsidian);
+  --prospect-foreground: var(--obsidian-foreground);
+  --converted: var(--crimson);
+  --converted-foreground: var(--crimson-foreground);
   --phone-frame: oklch(0.08 0.01 260);
   --chat-header: oklch(0.35 0.09 174);
   --chat-header-foreground: oklch(0.99 0 0);
@@ -223,4 +247,26 @@
     var(--color-violet) 240deg 300deg,
     var(--color-whatsapp) 300deg 360deg
   );
+}
+
+@utility page-heading {
+  position: relative;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 1.25rem;
+
+  &::after {
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    width: 4.5rem;
+    height: 3px;
+    border-radius: 999px;
+    background: var(--color-crimson);
+    content: "";
+  }
+}
+
+@utility obsidian-crimson-band {
+  background: linear-gradient(105deg, var(--color-obsidian) 0 72%, var(--color-crimson) 72% 100%);
+  color: var(--color-obsidian-foreground);
 }

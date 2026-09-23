@@ -56,7 +56,7 @@ function SidebarBody({
   return (
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
       <div className="flex h-16 shrink-0 items-center gap-3 border-b border-sidebar-border px-5">
-        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground">
+        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-crimson text-crimson-foreground shadow-sm">
           <LayoutDashboard className="h-5 w-5" />
         </div>
         <div className="truncate font-semibold tracking-tight">ACS CRM</div>
@@ -73,7 +73,7 @@ function SidebarBody({
               onClick={onNavigate}
               className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
                 active
-                  ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
+                  ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground ring-1 ring-crimson/60"
                   : "text-sidebar-foreground/75 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
               }`}
             >
@@ -141,7 +141,7 @@ function AppShell() {
 
       {/* Main */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 grid h-16 grid-cols-[auto_minmax(0,1fr)] items-center gap-3 border-b border-border bg-card px-4 sm:px-6">
+        <header className="sticky top-0 z-30 grid h-16 grid-cols-[auto_minmax(0,1fr)] items-center gap-3 border-b border-border border-t-2 border-t-crimson bg-card px-4 sm:px-6">
           <Button
             variant="ghost"
             size="icon"
@@ -156,7 +156,7 @@ function AppShell() {
             <span className="truncate">{activeLabel}</span>
           </div>
         </header>
-        <main className="min-w-0 flex-1 p-4 sm:p-6">
+        <main className="min-w-0 flex-1 bg-background p-4 sm:p-6">
           <Outlet />
         </main>
       </div>

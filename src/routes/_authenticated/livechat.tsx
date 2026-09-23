@@ -28,6 +28,16 @@ import {
 
 export const Route = createFileRoute("/_authenticated/livechat")({
   component: LiveChatPage,
+  head: () => ({
+    meta: [
+      { title: "Live Chat | ACS CRM" },
+      { name: "description", content: "Urus perbualan WhatsApp masuk dan keluar dalam ACS CRM." },
+      { property: "og:title", content: "Live Chat | ACS CRM" },
+      { property: "og:description", content: "Urus perbualan WhatsApp masuk dan keluar dalam ACS CRM." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
 });
 
 function LiveChatPage() {
@@ -54,7 +64,10 @@ function LiveChatPage() {
 
   const messages = useQuery({
     queryKey: ["lead-messages", selectedLeadId],
-    queryFn: () => msgFn({ data: { leadId: selectedLeadId! } }),
+    queryFn: () => {
+      if (!selectedLeadId) return Promise.resolve([]);
+      return msgFn({ data: { leadId: selectedLeadId } });
+    },
     enabled: !!selectedLeadId,
     refetchInterval: 8000,
   });
@@ -85,8 +98,10 @@ function LiveChatPage() {
   }, [messages.data]);
 
   const replyMutation = useMutation({
-    mutationFn: (text: string) =>
-      replyFn({ data: { leadId: selectedLeadId!, message: text } }),
+    mutationFn: (text: string) => {
+      if (!selectedLeadId) throw new Error("Pilih perbualan dahulu");
+      return replyFn({ data: { leadId: selectedLeadId, message: text } });
+    },
     onSuccess: () => {
       setDraft("");
       qc.invalidateQueries({ queryKey: ["lead-messages", selectedLeadId] });
@@ -102,7 +117,7 @@ function LiveChatPage() {
 
   return (
     <div className="space-y-4 h-[calc(100vh-8rem)] flex flex-col">
-      <div className="flex items-center justify-between gap-4">
+      <div className="page-heading flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Live Chat</h1>
           <p className="text-sm text-muted-foreground">
@@ -129,7 +144,7 @@ function LiveChatPage() {
 
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4 min-h-0">
         {/* Conversations list */}
-        <Card className="rounded-2xl overflow-hidden flex flex-col">
+        <Card className="rounded-lg overflow-hidden flex flex-col border-t-2 border-t-obsidian">
           <div className="p-3 border-b text-xs text-muted-foreground uppercase tracking-wide">
             {conversations.data?.length ?? 0} perbualan
           </div>
@@ -158,7 +173,7 @@ function LiveChatPage() {
                         {c.lead.whatsapp_name || c.lead.name}
                       </div>
                       {c.unread_count > 0 && (
-                        <Badge className="bg-success text-white h-5 min-w-5 rounded-full px-1.5 text-[10px]">
+                        <Badge className="bg-crimson text-crimson-foreground h-5 min-w-5 rounded-full px-1.5 text-[10px]">
                           {c.unread_count}
                         </Badge>
                       )}
@@ -179,7 +194,7 @@ function LiveChatPage() {
         </Card>
 
         {/* Thread */}
-        <Card className="rounded-2xl overflow-hidden flex flex-col">
+        <Card className="rounded-lg overflow-hidden flex flex-col border-t-2 border-t-crimson">
           {selectedConv ? (
             <>
               <div className="p-3 border-b flex items-center gap-3">
@@ -253,7 +268,7 @@ function MessageBubble({ msg }: { msg: any }) {
       <div
         className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm ${
           isOut
-            ? "bg-primary text-primary-foreground"
+            ? "bg-crimson text-crimson-foreground"
             : "bg-card border shadow-sm"
         }`}
       >

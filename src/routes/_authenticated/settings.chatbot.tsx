@@ -33,6 +33,16 @@ import { listSenders } from "@/lib/senders.functions";
 
 export const Route = createFileRoute("/_authenticated/settings/chatbot")({
   component: ChatbotSettingsPage,
+  head: () => ({
+    meta: [
+      { title: "AI Chatbot | ACS CRM" },
+      { name: "description", content: "Tetapkan dan uji balasan automatik AI untuk WhatsApp." },
+      { property: "og:title", content: "AI Chatbot | ACS CRM" },
+      { property: "og:description", content: "Tetapkan dan uji balasan automatik AI untuk WhatsApp." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
 });
 
 const PROVIDER_MODELS: Record<string, string[]> = {
@@ -135,16 +145,16 @@ function ChatbotSettingsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="page-heading">
         <h1 className="text-2xl font-semibold tracking-tight">AI Chatbot Auto-Reply</h1>
         <p className="text-sm text-muted-foreground">
           Balasan automatik untuk mesej masuk dari lead, berdasarkan pengetahuan produk yang anda tetapkan.
         </p>
       </div>
 
-      <Card className="p-6 rounded-2xl space-y-4">
+      <Card className="p-6 rounded-lg space-y-4 border-t-2 border-t-obsidian">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+           <div className="w-10 h-10 rounded-lg bg-obsidian text-obsidian-foreground flex items-center justify-center">
             <Bot className="w-5 h-5" />
           </div>
           <div className="flex-1">
@@ -287,7 +297,7 @@ function ChatbotSettingsPage() {
         </div>
       </Card>
 
-      <Card className="p-6 rounded-2xl space-y-5">
+      <Card className="p-6 rounded-lg space-y-5 border-t-2 border-t-crimson">
         <div>
           <div className="font-medium">Test Chatbot</div>
           <p className="text-xs text-muted-foreground">
