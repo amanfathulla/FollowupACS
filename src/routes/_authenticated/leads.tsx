@@ -491,7 +491,7 @@ function LeadsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="page-heading flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Dashboard Utama</h1>
           <p className="text-sm text-muted-foreground">
@@ -756,14 +756,14 @@ function LeadsPage() {
               label: "Lead PROSPEK",
               hint: "Belum beli — dalam followup",
               icon: UserPlus,
-              wrap: "bg-info text-info-foreground",
+               wrap: "bg-prospect text-prospect-foreground",
             },
             {
               val: "converted" as const,
               label: "Lead CONVERTED",
               hint: "Dah beli — followup pelanggan",
               icon: CheckCircle2,
-              wrap: "bg-success text-success-foreground",
+               wrap: "bg-converted text-converted-foreground",
             },
           ]
         ).map((c) => {
@@ -780,8 +780,8 @@ function LeadsPage() {
               key={c.val}
               type="button"
               onClick={() => setLeadTypeFilter(c.val)}
-              className={`text-left rounded-3xl p-6 transition-all ${c.wrap} ${
-                active ? "ring-4 ring-ring/40 shadow-lg" : "opacity-90 hover:opacity-100"
+               className={`text-left rounded-lg p-6 transition-all ${c.wrap} ${
+                 active ? "ring-4 ring-ring/30 shadow-lg" : "opacity-90 hover:opacity-100"
               }`}
             >
               <div className="flex items-start justify-between">
@@ -903,7 +903,9 @@ function LeadsPage() {
                   onClick={() => setLeadTypeFilter(val)}
                   className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${
                     leadTypeFilter === val
-                      ? "bg-primary text-primary-foreground"
+                       ? val === "prospect"
+                         ? "bg-prospect text-prospect-foreground"
+                         : "bg-converted text-converted-foreground"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
@@ -1304,41 +1306,41 @@ function TodayBlastEvents({ data, isLoading }: { data: any; isLoading: boolean }
         </div>
       </Card>
 
-      <Card className="overflow-hidden border-0 bg-primary text-primary-foreground">
+      <Card className="obsidian-crimson-band overflow-hidden border-0">
         <div className="grid gap-5 p-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
           <div className="min-w-0">
-            <div className="flex items-center gap-2 text-xs font-medium text-primary-foreground/70">
+            <div className="flex items-center gap-2 text-xs font-medium text-obsidian-foreground/70">
               <Clock3 className="h-4 w-4" /> NEXT BLAST
             </div>
             {isLoading ? (
-              <div className="mt-3 text-sm text-primary-foreground/70">Memuatkan jadual…</div>
+              <div className="mt-3 text-sm text-obsidian-foreground/70">Memuatkan jadual…</div>
             ) : next ? (
               <>
                 <div className="mt-2 text-xl font-semibold">
                   {formatMalaysiaDateTime(next.scheduled_at)}
                 </div>
-                <div className="mt-1 truncate text-sm text-primary-foreground/80">
+                <div className="mt-1 truncate text-sm text-obsidian-foreground/80">
                   {nextLead?.name ?? "—"} · {nextLead?.phone ?? "—"}
                 </div>
               </>
             ) : (
-              <div className="mt-3 text-sm text-primary-foreground/70">
+              <div className="mt-3 text-sm text-obsidian-foreground/70">
                 Tiada lagi blast dijadualkan untuk hari ini.
               </div>
             )}
           </div>
           {next && (
-            <div className="grid grid-cols-2 gap-x-6 gap-y-3 border-primary-foreground/20 text-sm md:border-l md:pl-6">
+            <div className="grid grid-cols-2 gap-x-6 gap-y-3 border-obsidian-foreground/20 text-sm md:border-l md:pl-6">
               <div>
-                <div className="text-xs text-primary-foreground/60">Followup</div>
+                <div className="text-xs text-obsidian-foreground/60">Followup</div>
                 <div className="mt-0.5 font-medium">D{next.day_offset ?? 0}</div>
               </div>
               <div>
-                <div className="text-xs text-primary-foreground/60">Sender</div>
+                <div className="text-xs text-obsidian-foreground/60">Sender</div>
                 <div className="mt-0.5 font-medium">{nextSender?.label ?? "Auto"}</div>
               </div>
               <div className="col-span-2">
-                <div className="text-xs text-primary-foreground/60">Nombor sender</div>
+                <div className="text-xs text-obsidian-foreground/60">Nombor sender</div>
                 <div className="mt-0.5 font-mono text-xs">{nextSender?.phone_number ?? "Belum diagih"}</div>
               </div>
             </div>
@@ -1477,7 +1479,10 @@ function FollowupBoard(props: {
 
   const board = useQuery({
     queryKey: ["followup-board", props.selectedSenderId],
-    queryFn: () => getBoardFn({ data: { senderId: props.selectedSenderId! } }),
+    queryFn: () => {
+      if (!props.selectedSenderId) throw new Error("Pilih sender dahulu");
+      return getBoardFn({ data: { senderId: props.selectedSenderId } });
+    },
     enabled: !!props.selectedSenderId,
     refetchInterval: 30_000,
   });

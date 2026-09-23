@@ -248,9 +248,9 @@ function MessagesPage() {
 
   return (
     <div className="mx-auto max-w-[1500px] space-y-5">
-      <header className="flex items-start justify-between gap-4">
+      <header className="page-heading flex items-start justify-between gap-4">
         <div>
-          <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase text-whatsapp">
+           <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase text-crimson">
             <MessageCircle className="h-4 w-4" /> Studio mesej automatik
           </div>
           <h1 className="text-2xl font-bold sm:text-3xl">Borang Mesej Harian</h1>
@@ -273,17 +273,17 @@ function MessagesPage() {
 
       <section className="grid gap-3 sm:grid-cols-2" aria-label="Kategori mesej">
         {([
-          { key: "prospect" as const, title: "Mesej Prospek", sub: "Lead belum beli", icon: MessageCircle, tone: "bg-info" },
-          { key: "customer" as const, title: "Mesej Pelanggan", sub: "Susulan selepas jualan", icon: MessagesSquare, tone: "bg-whatsapp" },
+          { key: "prospect" as const, title: "Mesej Prospek", sub: "Lead belum beli", icon: MessageCircle, tone: "bg-prospect text-prospect-foreground", activeTone: "border-prospect bg-prospect text-prospect-foreground" },
+          { key: "customer" as const, title: "Mesej Pelanggan", sub: "Susulan selepas jualan", icon: MessagesSquare, tone: "bg-converted text-converted-foreground", activeTone: "border-converted bg-converted text-converted-foreground" },
         ]).map((item) => {
           const active = category === item.key;
           const seq = (sequences.data ?? []).find((s: any) => (s.category ?? "prospect") === item.key);
           const Icon = item.icon;
           return (
-            <Button key={item.key} type="button" variant="outline" onClick={() => { setCategory(item.key); setSelectedStepId(null); }} className={`h-auto justify-start gap-3 border-2 px-4 py-4 text-left ${active ? "border-whatsapp bg-stat-2 shadow-sm" : "bg-card"}`}>
-              <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${item.tone} text-whatsapp-foreground`}><Icon className="h-5 w-5" /></span>
-              <span className="min-w-0 flex-1"><span className="block font-semibold">{item.title}</span><span className="block truncate text-xs font-normal text-muted-foreground">{item.sub} · {seq?.name ?? "Sequence belum ada"}</span></span>
-              {active && <Badge className="bg-whatsapp text-whatsapp-foreground">Aktif</Badge>}
+            <Button key={item.key} type="button" variant="outline" onClick={() => { setCategory(item.key); setSelectedStepId(null); }} className={`h-auto justify-start gap-3 border-2 px-4 py-4 text-left ${active ? `${item.activeTone} shadow-sm` : "bg-card"}`}>
+              <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${item.tone}`}><Icon className="h-5 w-5" /></span>
+              <span className="min-w-0 flex-1"><span className="block font-semibold">{item.title}</span><span className={`block truncate text-xs font-normal ${active ? "opacity-75" : "text-muted-foreground"}`}>{item.sub} · {seq?.name ?? "Sequence belum ada"}</span></span>
+              {active && <Badge className="border-current bg-background/15 text-current">Aktif</Badge>}
             </Button>
           );
         })}
@@ -306,8 +306,8 @@ function MessagesPage() {
       {selectedStep ? (
         <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
           <Card className="overflow-hidden rounded-xl p-0 shadow-sm">
-            <div className="flex items-center gap-3 border-b bg-stat-2 px-5 py-4">
-              <span className="grid h-10 w-10 place-items-center rounded-lg bg-whatsapp text-whatsapp-foreground"><MessageCircle className="h-5 w-5" /></span>
+            <div className={`flex items-center gap-3 border-b px-5 py-4 ${category === "prospect" ? "bg-prospect text-prospect-foreground" : "bg-converted text-converted-foreground"}`}>
+              <span className="grid h-10 w-10 place-items-center rounded-lg bg-background/15"><MessageCircle className="h-5 w-5" /></span>
               <div><p className="font-semibold">Edit mesej — D{selectedStep.day_offset}</p><p className="text-xs text-muted-foreground">Perubahan terus dipaparkan pada telefon</p></div>
             </div>
             <div className="space-y-5 p-4 sm:p-6">
