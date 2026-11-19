@@ -9,53 +9,47 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as AuthRouteImport } from './routes/auth'
-import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as AuthenticatedLivechatRouteImport } from './routes/_authenticated/livechat'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedLeadsRouteImport } from './routes/_authenticated/leads'
-import { Route as AuthenticatedSettingsWhatsappRouteImport } from './routes/_authenticated/settings.whatsapp'
-import { Route as AuthenticatedSettingsMessagesRouteImport } from './routes/_authenticated/settings.messages'
-import { Route as AuthenticatedSettingsChatbotRouteImport } from './routes/_authenticated/settings.chatbot'
+import { Route as AuthenticatedLivechatRouteImport } from './routes/_authenticated/livechat'
 import { Route as AuthenticatedSettingsAccountRouteImport } from './routes/_authenticated/settings.account'
-import { Route as ApiPublicHooksWhatsappWebhookRouteImport } from './routes/api/public/hooks/whatsapp-webhook'
-import { Route as ApiPublicHooksSendFollowupsRouteImport } from './routes/api/public/hooks/send-followups'
+import { Route as AuthenticatedSettingsChatbotRouteImport } from './routes/_authenticated/settings.chatbot'
+import { Route as AuthenticatedSettingsMessagesRouteImport } from './routes/_authenticated/settings.messages'
+import { Route as AuthenticatedSettingsWhatsappRouteImport } from './routes/_authenticated/settings.whatsapp'
 import { Route as ApiPublicHooksCheckSenderStatusRouteImport } from './routes/api/public/hooks/check-sender-status'
+import { Route as ApiPublicHooksSendFollowupsRouteImport } from './routes/api/public/hooks/send-followups'
+import { Route as ApiPublicHooksWhatsappWebhookRouteImport } from './routes/api/public/hooks/whatsapp-webhook'
 
-const AuthRoute = AuthRouteImport.update({
-  id: '/auth',
-  path: '/auth',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
-} as any)
-const AuthenticatedLivechatRoute = AuthenticatedLivechatRouteImport.update({
-  id: '/livechat',
-  path: '/livechat',
-  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedLeadsRoute = AuthenticatedLeadsRouteImport.update({
   id: '/leads',
   path: '/leads',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
-const AuthenticatedSettingsWhatsappRoute =
-  AuthenticatedSettingsWhatsappRouteImport.update({
-    id: '/settings/whatsapp',
-    path: '/settings/whatsapp',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
-const AuthenticatedSettingsMessagesRoute =
-  AuthenticatedSettingsMessagesRouteImport.update({
-    id: '/settings/messages',
-    path: '/settings/messages',
+const AuthenticatedLivechatRoute = AuthenticatedLivechatRouteImport.update({
+  id: '/livechat',
+  path: '/livechat',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedSettingsAccountRoute =
+  AuthenticatedSettingsAccountRouteImport.update({
+    id: '/settings/account',
+    path: '/settings/account',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedSettingsChatbotRoute =
@@ -64,16 +58,22 @@ const AuthenticatedSettingsChatbotRoute =
     path: '/settings/chatbot',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedSettingsAccountRoute =
-  AuthenticatedSettingsAccountRouteImport.update({
-    id: '/settings/account',
-    path: '/settings/account',
+const AuthenticatedSettingsMessagesRoute =
+  AuthenticatedSettingsMessagesRouteImport.update({
+    id: '/settings/messages',
+    path: '/settings/messages',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const ApiPublicHooksWhatsappWebhookRoute =
-  ApiPublicHooksWhatsappWebhookRouteImport.update({
-    id: '/api/public/hooks/whatsapp-webhook',
-    path: '/api/public/hooks/whatsapp-webhook',
+const AuthenticatedSettingsWhatsappRoute =
+  AuthenticatedSettingsWhatsappRouteImport.update({
+    id: '/settings/whatsapp',
+    path: '/settings/whatsapp',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const ApiPublicHooksCheckSenderStatusRoute =
+  ApiPublicHooksCheckSenderStatusRouteImport.update({
+    id: '/api/public/hooks/check-sender-status',
+    path: '/api/public/hooks/check-sender-status',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiPublicHooksSendFollowupsRoute =
@@ -82,10 +82,10 @@ const ApiPublicHooksSendFollowupsRoute =
     path: '/api/public/hooks/send-followups',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicHooksCheckSenderStatusRoute =
-  ApiPublicHooksCheckSenderStatusRouteImport.update({
-    id: '/api/public/hooks/check-sender-status',
-    path: '/api/public/hooks/check-sender-status',
+const ApiPublicHooksWhatsappWebhookRoute =
+  ApiPublicHooksWhatsappWebhookRouteImport.update({
+    id: '/api/public/hooks/whatsapp-webhook',
+    path: '/api/public/hooks/whatsapp-webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
 
@@ -184,11 +184,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/auth': {
-      id: '/auth'
-      path: '/auth'
-      fullPath: '/auth'
-      preLoaderRoute: typeof AuthRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -198,19 +198,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/_authenticated/livechat': {
-      id: '/_authenticated/livechat'
-      path: '/livechat'
-      fullPath: '/livechat'
-      preLoaderRoute: typeof AuthenticatedLivechatRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/leads': {
       id: '/_authenticated/leads'
@@ -219,25 +212,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedLeadsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/settings/whatsapp': {
-      id: '/_authenticated/settings/whatsapp'
-      path: '/settings/whatsapp'
-      fullPath: '/settings/whatsapp'
-      preLoaderRoute: typeof AuthenticatedSettingsWhatsappRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/settings/messages': {
-      id: '/_authenticated/settings/messages'
-      path: '/settings/messages'
-      fullPath: '/settings/messages'
-      preLoaderRoute: typeof AuthenticatedSettingsMessagesRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/settings/chatbot': {
-      id: '/_authenticated/settings/chatbot'
-      path: '/settings/chatbot'
-      fullPath: '/settings/chatbot'
-      preLoaderRoute: typeof AuthenticatedSettingsChatbotRouteImport
+    '/_authenticated/livechat': {
+      id: '/_authenticated/livechat'
+      path: '/livechat'
+      fullPath: '/livechat'
+      preLoaderRoute: typeof AuthenticatedLivechatRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/settings/account': {
@@ -247,11 +226,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedSettingsAccountRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/api/public/hooks/whatsapp-webhook': {
-      id: '/api/public/hooks/whatsapp-webhook'
-      path: '/api/public/hooks/whatsapp-webhook'
-      fullPath: '/api/public/hooks/whatsapp-webhook'
-      preLoaderRoute: typeof ApiPublicHooksWhatsappWebhookRouteImport
+    '/_authenticated/settings/chatbot': {
+      id: '/_authenticated/settings/chatbot'
+      path: '/settings/chatbot'
+      fullPath: '/settings/chatbot'
+      preLoaderRoute: typeof AuthenticatedSettingsChatbotRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/settings/messages': {
+      id: '/_authenticated/settings/messages'
+      path: '/settings/messages'
+      fullPath: '/settings/messages'
+      preLoaderRoute: typeof AuthenticatedSettingsMessagesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/settings/whatsapp': {
+      id: '/_authenticated/settings/whatsapp'
+      path: '/settings/whatsapp'
+      fullPath: '/settings/whatsapp'
+      preLoaderRoute: typeof AuthenticatedSettingsWhatsappRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/public/hooks/check-sender-status': {
+      id: '/api/public/hooks/check-sender-status'
+      path: '/api/public/hooks/check-sender-status'
+      fullPath: '/api/public/hooks/check-sender-status'
+      preLoaderRoute: typeof ApiPublicHooksCheckSenderStatusRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/hooks/send-followups': {
@@ -261,11 +261,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksSendFollowupsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/hooks/check-sender-status': {
-      id: '/api/public/hooks/check-sender-status'
-      path: '/api/public/hooks/check-sender-status'
-      fullPath: '/api/public/hooks/check-sender-status'
-      preLoaderRoute: typeof ApiPublicHooksCheckSenderStatusRouteImport
+    '/api/public/hooks/whatsapp-webhook': {
+      id: '/api/public/hooks/whatsapp-webhook'
+      path: '/api/public/hooks/whatsapp-webhook'
+      fullPath: '/api/public/hooks/whatsapp-webhook'
+      preLoaderRoute: typeof ApiPublicHooksWhatsappWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
