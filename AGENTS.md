@@ -10,3 +10,5 @@
 <!-- LOVABLE:END -->
 
 - Keep bulk-import duplicate detection in a browser-safe pure helper using the database phone normalization convention so warnings match equivalent Malaysian phone formats without changing import behavior.
+- Use shared lead-category helpers for status transitions and legacy list normalization; conversion updates the existing row rather than creating another lead.
+- Remove preview rows only from local import state so duplicate warnings and submitted rows stay aligned without deleting stored leads.

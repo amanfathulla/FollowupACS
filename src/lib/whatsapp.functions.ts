@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { getLeadCategory, leadStatusPatch } from "@/lib/lead-category";
 
 async function requireAdmin(ctx: { supabase: any; userId: string }): Promise<void> {
   const { data, error } = await ctx.supabase.rpc("has_role", {
@@ -154,7 +155,7 @@ export const listLeads = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false })
       .limit(300);
     if (error) throw new Error(error.message);
-    return data ?? [];
+    return (data ?? []).map((lead) => ({ ...lead, lead_type: getLeadCategory(lead) }));
   });
 
 const leadTypeSchema = z.enum(["prospect", "converted"]);
@@ -256,7 +257,7 @@ export const updateLeadStatus = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase
       .from("leads")
-      .update({ followup_status: data.status, updated_at: new Date().toISOString() })
+      .update({ ...leadStatusPatch(data.status), updated_at: new Date().toISOString() })
       .eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };

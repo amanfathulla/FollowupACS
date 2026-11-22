@@ -83,7 +83,8 @@ import {
   getTodayBlastEvents,
 } from "@/lib/whatsapp.functions";
 import { listSenders } from "@/lib/senders.functions";
-import { findImportDuplicates } from "@/lib/import-duplicates";
+import { findImportDuplicates, removeImportRow } from "@/lib/import-duplicates";
+import { getLeadCategory } from "@/lib/lead-category";
 
 export const Route = createFileRoute("/_authenticated/leads")({
   head: () => ({
@@ -410,11 +411,15 @@ function LeadsPage() {
   const statusMutation = useMutation({
     mutationFn: (v: { id: string; status: "active" | "replied" | "converted" | "stopped" }) =>
       updateLeadStatusFn({ data: v }),
-    onSuccess: () => {
-      toast.success("Status lead dikemaskini");
+    onSuccess: (_, variables) => {
+      toast.success(variables.status === "converted" ? "Lead dipindahkan ke Converted — tiada lagi dalam senarai belum beli" : "Status lead dikemaskini");
       qc.invalidateQueries({ queryKey: ["leads"] });
       qc.invalidateQueries({ queryKey: ["followups"] });
+      qc.invalidateQueries({ queryKey: ["stats"] });
+      qc.invalidateQueries({ queryKey: ["followup-board"] });
+      qc.invalidateQueries({ queryKey: ["today-blast-events"] });
     },
+    onError: (error) => toast.error(error instanceof Error ? error.message : "Gagal kemaskini status lead"),
   });
 
   const editLeadMutation = useMutation({
@@ -505,7 +510,7 @@ function LeadsPage() {
 
   const isAdmin = me.data?.isAdmin ?? false;
   const totalLeads = leads.data?.length ?? 0;
-  const converted = (leads.data ?? []).filter((l: { followup_status: string }) => l.followup_status === "converted").length;
+  const converted = (leads.data ?? []).filter((lead) => getLeadCategory(lead) === "converted").length;
   const conversionRate = totalLeads > 0 ? ((converted / totalLeads) * 100).toFixed(0) : "0";
 
   return (
@@ -742,8 +747,10 @@ function LeadsPage() {
                           <tr>
                             <th className="text-left px-3 py-2">Nama</th>
                             <th className="text-left px-3 py-2">Telefon</th>
+                            <th className="text-left px-3 py-2">Jenis Lead</th>
                             <th className="text-left px-3 py-2">Produk</th>
                             <th className="text-left px-3 py-2">Model Kereta</th>
+                            <th className="px-3 py-2"><span className="sr-only">Buang</span></th>
                           </tr>
                         </thead>
                         <tbody>
@@ -751,14 +758,32 @@ function LeadsPage() {
                             <tr key={i} className="border-t border-border">
                               <td className="px-3 py-2">{r.name}</td>
                               <td className="px-3 py-2 font-mono text-xs">{r.phone}</td>
+                              <td className="px-3 py-2 text-xs whitespace-nowrap">{importLeadType === "prospect" ? "PROSPEK — belum beli" : "CONVERTED — dah beli"}</td>
                               <td className="px-3 py-2 text-muted-foreground">
                                 {r.product ?? "—"}
                               </td>
                               <td className="px-3 py-2 text-muted-foreground">
                                 {r.car_model ?? "—"}
                               </td>
+                              <td className="px-3 py-2">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-destructive"
+                                  aria-label={`Buang ${r.name} daripada pratonton`}
+                                  title={`Buang ${r.name}`}
+                                  disabled={bulkImportMutation.isPending}
+                                  onClick={() => setImportPreview((rows) => rows ? removeImportRow(rows, i) : rows)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </td>
                             </tr>
                           ))}
+                          {importPreview.length === 0 && (
+                            <tr><td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">Tiada lead untuk diimport.</td></tr>
+                          )}
                         </tbody>
                       </table>
                     </div>
@@ -773,7 +798,7 @@ function LeadsPage() {
                     </Button>
                     <Button
                       onClick={() => bulkImportMutation.mutate(importPreview)}
-                      disabled={bulkImportMutation.isPending}
+                      disabled={bulkImportMutation.isPending || importPreview.length === 0}
                     >
                       Import {importPreview.length} lead
                     </Button>

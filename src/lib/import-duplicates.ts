@@ -4,6 +4,10 @@ export function normalizeImportPhone(phone: string): string {
   return `60${digits.startsWith("0") ? digits.slice(1) : digits}`;
 }
 
+export function removeImportRow<T>(rows: T[], index: number): T[] {
+  return rows.filter((_, rowIndex) => rowIndex !== index);
+}
+
 export function findImportDuplicates(rows: { name: string; phone: string }[]) {
   const groups = new Map<string, { phone: string; originals: string[]; names: string[]; count: number }>();
   for (const row of rows) {
