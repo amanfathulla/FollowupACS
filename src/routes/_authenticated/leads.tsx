@@ -17,6 +17,7 @@ import {
   ExternalLink,
   Upload,
   Download,
+  Copy,
 
   Pencil,
   Trash2,
@@ -82,6 +83,7 @@ import {
   getTodayBlastEvents,
 } from "@/lib/whatsapp.functions";
 import { listSenders } from "@/lib/senders.functions";
+import { findImportDuplicates } from "@/lib/import-duplicates";
 
 export const Route = createFileRoute("/_authenticated/leads")({
   head: () => ({
@@ -268,6 +270,16 @@ function LeadsPage() {
   const [importPreview, setImportPreview] = useState<ImportRow[] | null>(null);
   const [importLeadType, setImportLeadType] = useState<"prospect" | "converted">("prospect");
   const [importSenderId, setImportSenderId] = useState<string>("auto");
+  const importDuplicates = findImportDuplicates(importPreview ?? []);
+
+  async function copyImportDuplicates() {
+    try {
+      await navigator.clipboard.writeText(importDuplicates.flatMap((group) => group.originals).join("\n"));
+      toast.success("Nombor berulang telah disalin");
+    } catch {
+      toast.error("Tidak dapat salin. Pilih dan salin nombor daripada senarai.");
+    }
+  }
 
   const [form, setForm] = useState({
     name: "",
@@ -347,9 +359,10 @@ function LeadsPage() {
   });
 
   async function handleImportFile(file: File) {
+    setImportPreview(null);
     try {
       const buf = await file.arrayBuffer();
-      const wb = XLSX.read(buf, { type: "array" });
+      const wb = XLSX.read(buf, { type: "array", raw: true });
       const sheet = wb.Sheets[wb.SheetNames[0]];
       if (!sheet) {
         toast.error("Fail kosong — tiada sheet ditemui.");
@@ -381,6 +394,13 @@ function LeadsPage() {
         return;
       }
       setImportPreview(parsed);
+      const duplicates = findImportDuplicates(parsed);
+      if (duplicates.length) {
+        toast.warning(`${duplicates.length} nombor telefon berulang dalam fail`, {
+          description: "Senarai nombor tersedia dalam amaran untuk disalin.",
+          duration: 8000,
+        });
+      }
     } catch (e) {
       toast.error("Gagal baca fail: " + (e instanceof Error ? e.message : String(e)));
     }
@@ -620,7 +640,7 @@ function LeadsPage() {
                 Import Pukal
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl max-h-[90dvh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Import Lead Pukal (Excel / CSV)</DialogTitle>
               </DialogHeader>
@@ -695,6 +715,24 @@ function LeadsPage() {
 
                 {importPreview && (
                   <div className="space-y-3">
+                    {importDuplicates.length > 0 && (
+                      <div role="alert" className="space-y-3 rounded-lg border border-warning/40 bg-warning/10 p-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="text-sm font-semibold">{importDuplicates.length} nombor telefon berulang dalam fail</div>
+                          <Button variant="outline" size="sm" onClick={copyImportDuplicates}>
+                            <Copy className="mr-2 h-4 w-4" />Salin semua nombor
+                          </Button>
+                        </div>
+                        <div className="max-h-40 space-y-2 overflow-y-auto text-sm">
+                          {importDuplicates.map((group) => (
+                            <div key={group.phone} className="border-t border-warning/30 pt-2">
+                              <div className="break-all font-mono select-text">{group.originals.join(" / ")}</div>
+                              <div className="break-words text-xs text-muted-foreground">{group.count} kali — {group.names.join(", ")}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     <div className="text-sm font-medium">
                       Preview ({importPreview.length} lead):
                     </div>

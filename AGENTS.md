@@ -8,3 +8,5 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Keep bulk-import duplicate detection in a browser-safe pure helper using the database phone normalization convention so warnings match equivalent Malaysian phone formats without changing import behavior.
