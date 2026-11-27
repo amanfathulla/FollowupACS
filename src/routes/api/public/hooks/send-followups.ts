@@ -1,6 +1,7 @@
 // Cron-invoked hourly. Sends pending followups using per-lead sender,
 // respects gap_seconds & daily_limit, supports media via signed URLs,
 // and tracks per-sender health (connection_status + consecutive_failures).
+import { renderMessageVariation, selectMessageMedia } from "@/lib/message-variations";
 import { createFileRoute } from "@tanstack/react-router";
 
 const CORS = {
@@ -32,7 +33,6 @@ export const Route = createFileRoute("/api/public/hooks/send-followups")({
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const {
           loadCredentials,
-          renderTemplate,
           sendUstazaiMessage,
           sendUstazaiMedia,
           signMediaUrl,
@@ -140,7 +140,7 @@ export const Route = createFileRoute("/api/public/hooks/send-followups")({
         const { data: due, error } = await supabaseAdmin
           .from("lead_followups")
           .select(
-            "id, lead_id, day_offset, leads!inner(name, phone, product, car_model, whatsapp_name, notes, lead_type, followup_status, assigned_sender_id), followup_steps!inner(message_template, media_type, media_url)",
+            "id, lead_id, day_offset, leads!inner(name, phone, product, car_model, whatsapp_name, notes, lead_type, followup_status, assigned_sender_id), followup_steps!inner(message_template, media_type, media_url, media_urls, spintax_enabled)",
           )
           .eq("status", "pending")
           .lte("scheduled_at", nowIso)
@@ -176,6 +176,8 @@ export const Route = createFileRoute("/api/public/hooks/send-followups")({
             message_template: string;
             media_type: string | null;
             media_url: string | null;
+            media_urls: string[];
+            spintax_enabled: boolean;
           };
 
           if (lead.followup_status !== "active") {
@@ -219,7 +221,8 @@ export const Route = createFileRoute("/api/public/hooks/send-followups")({
             }
           }
 
-          const message = renderTemplate(step.message_template ?? "", {
+          const mediaPath = selectMessageMedia(step);
+          const message = renderMessageVariation(step.message_template ?? "", step.spintax_enabled, {
             nama: lead.name,
             telefon: lead.phone,
             produk: lead.product ?? "",
@@ -236,8 +239,8 @@ export const Route = createFileRoute("/api/public/hooks/send-followups")({
           }
 
           let result;
-          if (step.media_type && step.media_url) {
-            const url = await signMediaUrl(step.media_url);
+          if (step.media_type && mediaPath) {
+            const url = await signMediaUrl(mediaPath);
             if (!url) {
               await supabaseAdmin
                 .from("lead_followups")
@@ -287,7 +290,7 @@ export const Route = createFileRoute("/api/public/hooks/send-followups")({
               direction: "outbound",
               message_type: step.media_type ?? "text",
               content: message,
-              media_url: step.media_url,
+              media_url: mediaPath,
               provider_message_id: result.messageId,
             });
             if (senderId) {

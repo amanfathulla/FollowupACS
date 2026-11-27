@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { renderMessageVariation, selectMessageMedia } from "@/lib/message-variations";
 import { getLeadCategory, leadStatusPatch } from "@/lib/lead-category";
 
 async function requireAdmin(ctx: { supabase: any; userId: string }): Promise<void> {
@@ -54,7 +55,7 @@ export const listSteps = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { data: rows, error } = await context.supabase
       .from("followup_steps")
-      .select("id, sequence_id, step_order, day_offset, message_template, media_type, media_url")
+      .select("id, sequence_id, step_order, day_offset, message_template, media_type, media_url, media_urls, spintax_enabled")
       .eq("sequence_id", data.sequenceId)
       .order("step_order", { ascending: true });
     if (error) throw new Error(error.message);
@@ -72,6 +73,8 @@ export const updateStep = createServerFn({ method: "POST" })
       day_offset?: number;
       media_type?: "image" | "video" | "audio" | "document" | null;
       media_url?: string | null;
+      media_urls?: string[];
+      spintax_enabled?: boolean;
     }) =>
       z
         .object({
@@ -80,6 +83,8 @@ export const updateStep = createServerFn({ method: "POST" })
           day_offset: z.number().int().min(0).max(365).optional(),
           media_type: mediaTypeSchema,
           media_url: z.string().max(500).nullable().optional(),
+          media_urls: z.array(z.string().min(1).max(500)).max(5).optional(),
+          spintax_enabled: z.boolean().optional(),
         })
         .parse(d),
   )
@@ -92,6 +97,8 @@ export const updateStep = createServerFn({ method: "POST" })
     if (data.day_offset !== undefined) patch.day_offset = data.day_offset;
     if (data.media_type !== undefined) patch.media_type = data.media_type;
     if (data.media_url !== undefined) patch.media_url = data.media_url;
+    if (data.media_urls !== undefined) patch.media_urls = data.media_urls;
+    if (data.spintax_enabled !== undefined) patch.spintax_enabled = data.spintax_enabled;
     const { error } = await context.supabase.from("followup_steps").update(patch as any).eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -554,13 +561,13 @@ export const sendFollowupNow = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await requireAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { loadCredentials, renderTemplate, sendUstazaiMessage, sendUstazaiMedia, signMediaUrl } =
+    const { loadCredentials, sendUstazaiMessage, sendUstazaiMedia, signMediaUrl } =
       await import("./ustazai.server");
 
     const { data: fu, error } = await supabaseAdmin
       .from("lead_followups")
       .select(
-        "id, status, lead_id, day_offset, leads!inner(name, phone, product, followup_status, assigned_sender_id), followup_steps!inner(message_template, media_type, media_url)",
+        "id, status, lead_id, day_offset, leads!inner(name, phone, product, car_model, whatsapp_name, notes, lead_type, followup_status, assigned_sender_id), followup_steps!inner(message_template, media_type, media_url, media_urls, spintax_enabled)",
       )
       .eq("id", data.id)
       .maybeSingle();
@@ -570,6 +577,10 @@ export const sendFollowupNow = createServerFn({ method: "POST" })
       name: string;
       phone: string;
       product: string | null;
+      car_model: string | null;
+      whatsapp_name: string | null;
+      notes: string | null;
+      lead_type: string | null;
       followup_status: string;
       assigned_sender_id: string | null;
     };
@@ -577,6 +588,8 @@ export const sendFollowupNow = createServerFn({ method: "POST" })
       message_template: string;
       media_type: string | null;
       media_url: string | null;
+      media_urls: string[];
+      spintax_enabled: boolean;
     };
     if (lead.followup_status !== "active") throw new Error("Lead bukan status aktif");
 
@@ -593,14 +606,20 @@ export const sendFollowupNow = createServerFn({ method: "POST" })
       senderPhone = s?.phone_number as string | undefined;
     }
 
-    const message = renderTemplate(step.message_template ?? "", {
+    const mediaPath = selectMessageMedia(step);
+    const message = renderMessageVariation(step.message_template ?? "", step.spintax_enabled, {
       nama: lead.name,
+      telefon: lead.phone,
       produk: lead.product ?? "",
+      model_kereta: lead.car_model ?? "",
+      nama_whatsapp: lead.whatsapp_name ?? "",
+      nota: lead.notes ?? "",
+      jenis_lead: lead.lead_type ?? "",
     });
 
     let result;
-    if (step.media_type && step.media_url) {
-      const url = await signMediaUrl(step.media_url);
+    if (step.media_type && mediaPath) {
+      const url = await signMediaUrl(mediaPath);
       if (!url) throw new Error("Gagal generate signed URL untuk media");
       result = await sendUstazaiMedia({
         credentials: creds,
@@ -636,7 +655,7 @@ export const sendFollowupNow = createServerFn({ method: "POST" })
         direction: "outbound",
         message_type: step.media_type ?? "text",
         content: message,
-        media_url: step.media_url,
+        media_url: mediaPath,
         provider_message_id: result.messageId,
       });
       return { ok: true };

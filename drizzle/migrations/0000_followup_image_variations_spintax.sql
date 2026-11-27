@@ -1,0 +1,3 @@
+ALTER TABLE public.followup_steps ADD COLUMN media_urls text[] NOT NULL DEFAULT '{}', ADD COLUMN spintax_enabled boolean NOT NULL DEFAULT false;
+ALTER TABLE public.followup_steps ADD CONSTRAINT followup_steps_max_five_images CHECK (cardinality(media_urls) <= 5);
+COMMENT ON COLUMN public.followup_steps.media_urls IS 'Up to five image alternatives; one chosen randomly per recipient. Empty uses legacy media_url.';

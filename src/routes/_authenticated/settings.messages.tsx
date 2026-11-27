@@ -22,6 +22,7 @@ import {
   FileText,
   Music2,
   Clock3,
+  Shuffle,
 } from "lucide-react";
 
 
@@ -47,6 +48,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { Switch } from "@/components/ui/switch";
+import { ImageVariations } from "@/components/whatsapp/image-variations";
+import { renderMessageVariation, validateImageSelection, selectMessageMedia } from "@/lib/message-variations";
 import { MESSAGE_PLACEHOLDERS } from "@/lib/placeholders";
 
 
@@ -117,6 +121,10 @@ function MessagesPage() {
   const [mediaPath, setMediaPath] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [imagePaths, setImagePaths] = useState<string[]>([]);
+  const [spintaxEnabled, setSpintaxEnabled] = useState(false);
+  const [previewSeed, setPreviewSeed] = useState(0.5);
+  const previewRequest = useRef(0);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const messageRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -153,45 +161,74 @@ function MessagesPage() {
     if (s) {
       setDraftMessage(s.message_template);
       setDraftDay(s.day_offset);
-      if (s.media_type && s.media_url) {
+      setSpintaxEnabled(s.spintax_enabled ?? false);
+      const images = s.media_type === "image" ? (s.media_urls?.length ? s.media_urls : s.media_url ? [s.media_url] : []) : [];
+      setImagePaths(images);
+      if (s.media_type && (s.media_url || images.length)) {
         setMessageMode("media");
         setMediaType(s.media_type as MediaType);
-        setMediaPath(s.media_url);
-        void refreshPreview(s.media_url);
+        const path = images[0] ?? s.media_url;
+        setMediaPath(path);
+        if (path) void refreshPreview(path);
       } else {
         setMessageMode("text");
         setMediaPath(null);
+        previewRequest.current++;
         setPreviewUrl(null);
       }
     }
   }, [selectedStepId, steps.data]);
 
   async function refreshPreview(path: string) {
-    if (!path) return setPreviewUrl(null);
+    const request = ++previewRequest.current;
+    setPreviewUrl(null);
+    if (/^https?:\/\//i.test(path)) { setPreviewUrl(path); return; }
     const [bucket, ...rest] = path.split("/");
-    const { data } = await supabase.storage.from(bucket).createSignedUrl(rest.join("/"), 60 * 60);
-    setPreviewUrl(data?.signedUrl ?? null);
+    if (!bucket) return;
+    const { data } = await supabase.storage.from(bucket).createSignedUrl(rest.join("/"), 3600);
+    if (request === previewRequest.current) setPreviewUrl(data?.signedUrl ?? null);
   }
 
-  async function handleFileUpload(file: File) {
-    setUploading(true);
-    try {
-      const ext = file.name.split(".").pop() ?? "bin";
-      const path = `steps/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-      const { error } = await supabase.storage.from("followup-media").upload(path, file, {
-        contentType: file.type,
-        upsert: false,
-      });
-      if (error) throw error;
-      const stored = `followup-media/${path}`;
-      setMediaPath(stored);
-      await refreshPreview(stored);
-      toast.success("Fail dimuat naik");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Muat naik gagal");
-    } finally {
-      setUploading(false);
+  function selectImage(path: string) { setMediaPath(path); void refreshPreview(path); }
+  function removeImage(path: string) {
+    const next = imagePaths.filter((item) => item !== path);
+    setImagePaths(next);
+    if (mediaPath === path) {
+      const first = next[0] ?? null;
+      setMediaPath(first);
+      previewRequest.current++;
+      setPreviewUrl(null);
+      if (first) void refreshPreview(first);
     }
+  }
+
+  async function handleFileUpload(files: File[]) {
+    if (!isAdmin || uploading) return;
+    try {
+      if (mediaType === "image") {
+        validateImageSelection(imagePaths.length, files.length);
+        if (files.some((file) => !file.type.startsWith("image/"))) throw new Error("Pilih fail gambar sahaja.");
+      } else if (files.length > 1) throw new Error("Pilih satu fail untuk jenis media ini.");
+    } catch (error) { toast.error(error instanceof Error ? error.message : "Fail tidak sah"); return; }
+    setUploading(true);
+    let currentImages = imagePaths;
+    let uploaded = 0;
+    try {
+      for (const file of files) {
+        const ext = file.name.split(".").pop() ?? "bin";
+        const path = `steps/${crypto.randomUUID()}.${ext}`;
+        const { error } = await supabase.storage.from("followup-media").upload(path, file, { contentType: file.type, upsert: false });
+        if (error) throw error;
+        const stored = `followup-media/${path}`;
+        if (mediaType === "image") { currentImages = [...currentImages, stored]; setImagePaths(currentImages); }
+        setMediaPath(stored);
+        await refreshPreview(stored);
+        uploaded++;
+      }
+      toast.success(`${uploaded} fail dimuat naik`);
+    } catch (e) {
+      toast.error(`${uploaded ? `${uploaded} fail berjaya; ` : ""}${e instanceof Error ? e.message : "Muat naik gagal"}`);
+    } finally { setUploading(false); }
   }
 
   const updateStepMutation = useMutation({
@@ -203,7 +240,9 @@ function MessagesPage() {
           message_template: draftMessage,
           day_offset: draftDay,
           media_type: messageMode === "media" ? mediaType : null,
-          media_url: messageMode === "media" ? mediaPath : null,
+          media_url: messageMode === "media" ? (mediaType === "image" ? imagePaths[0] ?? null : mediaPath) : null,
+          media_urls: messageMode === "media" && mediaType === "image" ? imagePaths : [],
+          spintax_enabled: spintaxEnabled,
         },
       });
     },
@@ -241,10 +280,15 @@ function MessagesPage() {
   });
 
   const selectedStep = steps.data?.find((x: any) => x.id === selectedStepId);
-  const previewMessage = MESSAGE_PLACEHOLDERS.reduce(
-    (message, placeholder) => message.split(placeholder.token).join(placeholder.example),
-    draftMessage,
-  );
+  const previewMessage = renderMessageVariation(draftMessage, spintaxEnabled, Object.fromEntries(MESSAGE_PLACEHOLDERS.map((placeholder) => [placeholder.token.slice(2, -2), placeholder.example])), () => previewSeed);
+
+  function nextVariation() {
+    setPreviewSeed(Math.random());
+    if (messageMode === "media" && mediaType === "image") {
+      const path = selectMessageMedia({ media_type: "image", media_url: mediaPath, media_urls: imagePaths });
+      if (path) selectImage(path);
+    }
+  }
 
   return (
     <div className="mx-auto max-w-[1500px] space-y-5">
@@ -280,7 +324,7 @@ function MessagesPage() {
           const seq = (sequences.data ?? []).find((s: any) => (s.category ?? "prospect") === item.key);
           const Icon = item.icon;
           return (
-            <Button key={item.key} type="button" variant="outline" onClick={() => { setCategory(item.key); setSelectedStepId(null); }} className={`h-auto justify-start gap-3 border-2 px-4 py-4 text-left ${active ? `${item.activeTone} shadow-sm` : "bg-card"}`}>
+            <Button key={item.key} type="button" variant="outline" disabled={uploading} onClick={() => { setCategory(item.key); setSelectedStepId(null); }} className={`h-auto justify-start gap-3 border-2 px-4 py-4 text-left ${active ? `${item.activeTone} shadow-sm` : "bg-card"}`}>
               <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${item.tone}`}><Icon className="h-5 w-5" /></span>
               <span className="min-w-0 flex-1"><span className="block font-semibold">{item.title}</span><span className={`block truncate text-xs font-normal ${active ? "opacity-75" : "text-muted-foreground"}`}>{item.sub} · {seq?.name ?? "Sequence belum ada"}</span></span>
               {active && <Badge className="border-current bg-background/15 text-current">Aktif</Badge>}
@@ -297,7 +341,7 @@ function MessagesPage() {
         <div className="flex gap-2 overflow-x-auto p-3">
           {(steps.data ?? []).map((step: any) => {
             const active = selectedStepId === step.id;
-            return <Button key={step.id} type="button" variant={active ? "default" : "outline"} onClick={() => setSelectedStepId(step.id)} className={`h-14 min-w-16 shrink-0 flex-col gap-0 ${active ? "bg-whatsapp text-whatsapp-foreground hover:bg-whatsapp/90" : ""}`}><span className="text-sm font-bold">D{step.day_offset}</span><span className="text-[10px] font-normal opacity-80">Hari {step.day_offset}</span></Button>;
+            return <Button key={step.id} disabled={uploading} type="button" variant={active ? "default" : "outline"} onClick={() => setSelectedStepId(step.id)} className={`h-14 min-w-16 shrink-0 flex-col gap-0 ${active ? "bg-whatsapp text-whatsapp-foreground hover:bg-whatsapp/90" : ""}`}><span className="text-sm font-bold">D{step.day_offset}</span><span className="text-[10px] font-normal opacity-80">Hari {step.day_offset}</span></Button>;
           })}
           {steps.data?.length === 0 && <p className="px-2 py-3 text-sm text-muted-foreground">Belum ada langkah.</p>}
         </div>
@@ -305,7 +349,7 @@ function MessagesPage() {
 
       {selectedStep ? (
         <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
-          <Card className="overflow-hidden rounded-xl p-0 shadow-sm">
+          <Card className="min-w-0 overflow-hidden rounded-xl p-0 shadow-sm">
             <div className={`flex items-center gap-3 border-b px-5 py-4 ${category === "prospect" ? "bg-prospect text-prospect-foreground" : "bg-converted text-converted-foreground"}`}>
               <span className="grid h-10 w-10 place-items-center rounded-lg bg-background/15"><MessageCircle className="h-5 w-5" /></span>
               <div><p className="font-semibold">Edit mesej — D{selectedStep.day_offset}</p><p className="text-xs text-muted-foreground">Perubahan terus dipaparkan pada telefon</p></div>
@@ -313,7 +357,7 @@ function MessagesPage() {
             <div className="space-y-5 p-4 sm:p-6">
               <div className="grid gap-4 md:grid-cols-[160px_1fr]">
                 <div><Label htmlFor="message-day">Hari selepas lead masuk</Label><Input id="message-day" type="number" min={0} value={draftDay} onChange={(e) => setDraftDay(Number(e.target.value))} disabled={!isAdmin} /></div>
-                <div><Label>Jenis mesej</Label><div className="mt-1 flex gap-2"><Button type="button" variant={messageMode === "text" ? "default" : "outline"} size="sm" onClick={() => setMessageMode("text")} disabled={!isAdmin}>Teks sahaja</Button><Button type="button" variant={messageMode === "media" ? "default" : "outline"} size="sm" onClick={() => setMessageMode("media")} disabled={!isAdmin}>Teks + Media</Button></div></div>
+                <div><Label>Jenis mesej</Label><div className="mt-1 flex gap-2"><Button type="button" variant={messageMode === "text" ? "default" : "outline"} size="sm" onClick={() => setMessageMode("text")} disabled={!isAdmin || uploading}>Teks sahaja</Button><Button type="button" variant={messageMode === "media" ? "default" : "outline"} size="sm" onClick={() => setMessageMode("media")} disabled={!isAdmin || uploading}>Teks + Media</Button></div></div>
               </div>
 
               <div><Label>Masukkan maklumat lead</Label><div className="mt-2 flex flex-wrap gap-2 rounded-lg border bg-muted/30 p-3">{MESSAGE_PLACEHOLDERS.map((placeholder) => <Button key={placeholder.token} type="button" variant="outline" size="sm" disabled={!isAdmin} onClick={() => insertPlaceholder(placeholder.token)} title={`${placeholder.column} · contoh: ${placeholder.example}`} className="h-auto gap-1 px-2 py-1"><span className="font-mono text-xs">{placeholder.token}</span><span className="text-[10px] text-muted-foreground">{placeholder.label}</span></Button>)}</div></div>
@@ -321,20 +365,23 @@ function MessagesPage() {
               {messageMode === "media" && (
                 <div className="space-y-3 rounded-lg border bg-muted/30 p-4">
                   <div className="grid gap-3 md:grid-cols-3">
-                    <div><Label>Jenis media</Label><Select value={mediaType} onValueChange={(value) => setMediaType(value as MediaType)} disabled={!isAdmin}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="image">Gambar</SelectItem><SelectItem value="video">Video</SelectItem><SelectItem value="audio">Audio</SelectItem><SelectItem value="document">Dokumen</SelectItem></SelectContent></Select></div>
-                    <div className="md:col-span-2"><Label>Muat naik fail</Label><div className="mt-1 flex gap-2"><input ref={fileInputRef} type="file" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) void handleFileUpload(file); }} /><Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={!isAdmin || uploading}><Upload className="mr-2 h-4 w-4" />{uploading ? "Memuat naik…" : "Pilih fail"}</Button>{mediaPath && <Button type="button" variant="ghost" size="icon" aria-label="Buang media" onClick={() => { setMediaPath(null); setPreviewUrl(null); }}><X className="h-4 w-4" /></Button>}</div></div>
+                    <div><Label>Jenis media</Label><Select value={mediaType} onValueChange={(value) => { setMediaType(value as MediaType); previewRequest.current++; setPreviewUrl(null); const path = value === "image" ? imagePaths[0] ?? null : null; setMediaPath(path); if (path) void refreshPreview(path); }} disabled={!isAdmin || uploading}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="image">Gambar</SelectItem><SelectItem value="video">Video</SelectItem><SelectItem value="audio">Audio</SelectItem><SelectItem value="document">Dokumen</SelectItem></SelectContent></Select></div>
+                    <div className="md:col-span-2"><Label>Muat naik fail</Label><div className="mt-1 flex gap-2"><input ref={fileInputRef} type="file" multiple={mediaType === "image"} accept={mediaType === "image" ? "image/*" : mediaType === "video" ? "video/*" : mediaType === "audio" ? "audio/*" : undefined} className="hidden" onChange={(e) => { const files = Array.from(e.target.files ?? []); if (files.length) void handleFileUpload(files); e.target.value = ""; }} /><Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={!isAdmin || uploading || (mediaType === "image" && imagePaths.length >= 5)}><Upload className="mr-2 h-4 w-4" />{uploading ? "Memuat naik…" : (mediaType === "image" ? "Pilih gambar" : "Pilih fail")}</Button>{mediaPath && mediaType !== "image" && <Button type="button" variant="ghost" size="icon" aria-label="Buang media" disabled={!isAdmin || uploading} onClick={() => { setMediaPath(null); setPreviewUrl(null); }}><X className="h-4 w-4" /></Button>}</div></div>
                   </div>
+                  {mediaType === "image" && <div className="space-y-3"><div className="flex items-center justify-between"><Label>Variasi gambar</Label><Badge variant="outline">{imagePaths.length}/5</Badge></div><ImageVariations paths={imagePaths} selected={mediaPath} onSelect={selectImage} onRemove={removeImage} disabled={!isAdmin || uploading} /></div>}
                 </div>
               )}
 
               <div><div className="mb-2 flex items-end justify-between gap-3"><Label htmlFor="message-copy">{messageMode === "media" ? "Caption mesej" : "Ayat mesej"}</Label><span className="text-xs text-muted-foreground">{draftMessage.length} aksara</span></div><Textarea id="message-copy" ref={messageRef} rows={12} value={draftMessage} onChange={(e) => setDraftMessage(e.target.value)} disabled={!isAdmin} className="resize-y bg-muted/20 text-base leading-relaxed" /></div>
 
-              <div className="flex flex-col-reverse gap-2 border-t pt-5 sm:flex-row sm:justify-between"><Button variant="outline" onClick={() => { if (confirm("Padam langkah ini?")) deleteStepMutation.mutate(selectedStep.id); }} disabled={!isAdmin}><Trash2 className="mr-2 h-4 w-4" />Padam</Button><Button onClick={() => updateStepMutation.mutate()} disabled={!isAdmin || updateStepMutation.isPending} className="bg-whatsapp text-whatsapp-foreground hover:bg-whatsapp/90"><Save className="mr-2 h-4 w-4" />Simpan & kemas kini</Button></div>
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4"><Label htmlFor="spintax-enabled" className="flex items-center gap-2"><Shuffle className="h-4 w-4 text-crimson" />Spintax</Label><Switch id="spintax-enabled" checked={spintaxEnabled} onCheckedChange={setSpintaxEnabled} disabled={!isAdmin} />{spintaxEnabled && <Button type="button" variant="outline" size="sm" onClick={() => insertPlaceholder("{Hi|Hello|Assalamualaikum}")} disabled={!isAdmin}><Plus className="mr-1 h-3 w-3" />{"{Hi|Hello|Assalamualaikum}"}</Button>}</div>
+
+              <div className="flex flex-col-reverse gap-2 border-t pt-5 sm:flex-row sm:justify-between"><Button variant="outline" onClick={() => { if (confirm("Padam langkah ini?")) deleteStepMutation.mutate(selectedStep.id); }} disabled={!isAdmin}><Trash2 className="mr-2 h-4 w-4" />Padam</Button><Button onClick={() => updateStepMutation.mutate()} disabled={!isAdmin || uploading || updateStepMutation.isPending} className="bg-whatsapp text-whatsapp-foreground hover:bg-whatsapp/90"><Save className="mr-2 h-4 w-4" />Simpan & kemas kini</Button></div>
             </div>
           </Card>
 
-          <aside className="xl:sticky xl:top-5">
-            <div className="mb-3 flex items-center justify-between"><div><p className="font-semibold">Pratonton WhatsApp</p><p className="text-xs text-muted-foreground">Data contoh menggantikan placeholder</p></div><Badge variant="outline" className="gap-1 border-whatsapp text-whatsapp"><span className="h-2 w-2 rounded-full bg-whatsapp" /> Live</Badge></div>
+          <aside className="min-w-0 xl:sticky xl:top-5">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2"><div><p className="font-semibold">Pratonton WhatsApp</p><p className="text-xs text-muted-foreground">Data contoh menggantikan placeholder</p></div><Button type="button" size="sm" variant="outline" onClick={nextVariation}><Shuffle className="mr-1 h-3 w-3" />Variasi lain</Button><Badge variant="outline" className="gap-1 border-whatsapp text-whatsapp"><span className="h-2 w-2 rounded-full bg-whatsapp" /> Live</Badge></div>
             <div className="mx-auto w-full max-w-[350px] rounded-[2.25rem] border-[7px] border-phone-frame bg-phone-frame p-1 shadow-xl">
               <div className="relative flex h-[650px] flex-col overflow-hidden rounded-[1.75rem] bg-chat-wallpaper">
                 <div className="absolute left-1/2 top-0 z-20 h-5 w-28 -translate-x-1/2 rounded-b-xl bg-phone-frame" />
@@ -342,7 +389,7 @@ function MessagesPage() {
                   <Phone className="h-4 w-4" /><span className="grid h-9 w-9 place-items-center rounded-full bg-chat-avatar"><MessageCircle className="h-5 w-5" /></span><div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{category === "prospect" ? "Ahmad" : "Pelanggan ACS"}</p><p className="text-[10px] opacity-80">dalam talian</p></div><Video className="h-4 w-4" /><MoreVertical className="h-4 w-4" />
                 </div>
                 <div className="flex flex-1 flex-col justify-end overflow-y-auto p-3">
-                  <div className="relative ml-auto max-w-[88%] whitespace-pre-wrap rounded-lg rounded-tr-none bg-chat-bubble p-2.5 text-[12px] leading-relaxed text-chat-bubble-foreground shadow-sm">
+                  <div className="relative ml-auto max-w-[88%] whitespace-pre-wrap break-words rounded-lg rounded-tr-none bg-chat-bubble p-2.5 text-[12px] leading-relaxed text-chat-bubble-foreground shadow-sm">
                     {messageMode === "media" && previewUrl && mediaType === "image" && <img src={previewUrl} alt="Media mesej" className="mb-2 max-h-48 w-full rounded-md object-cover" />}
                     {messageMode === "media" && previewUrl && mediaType === "video" && <video src={previewUrl} controls className="mb-2 max-h-48 w-full rounded-md" />}
                     {messageMode === "media" && mediaType === "audio" && <div className="mb-2 flex items-center gap-2 rounded-md bg-chat-media p-3"><Music2 className="h-5 w-5" /><span>Audio followup</span></div>}

@@ -111,8 +111,10 @@ export type Database = {
           id: string
           media_type: string | null
           media_url: string | null
+          media_urls: string[]
           message_template: string
           sequence_id: string
+          spintax_enabled: boolean
           step_order: number
           updated_at: string
         }
@@ -122,8 +124,10 @@ export type Database = {
           id?: string
           media_type?: string | null
           media_url?: string | null
+          media_urls?: string[]
           message_template: string
           sequence_id: string
+          spintax_enabled?: boolean
           step_order: number
           updated_at?: string
         }
@@ -133,8 +137,10 @@ export type Database = {
           id?: string
           media_type?: string | null
           media_url?: string | null
+          media_urls?: string[]
           message_template?: string
           sequence_id?: string
+          spintax_enabled?: boolean
           step_order?: number
           updated_at?: string
         }

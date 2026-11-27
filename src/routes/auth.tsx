@@ -11,6 +11,14 @@ import { toast } from "sonner";
 import { MessageCircle } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
+  head: () => ({ meta: [
+    { title: "Log Masuk — ACS CRM" },
+    { name: "description", content: "Log masuk ke akaun ACS CRM untuk mengurus lead dan mesej WhatsApp." },
+    { property: "og:title", content: "Log Masuk — ACS CRM" },
+    { property: "og:description", content: "Log masuk ke akaun ACS CRM untuk mengurus lead dan mesej WhatsApp." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   ssr: false,
   component: AuthPage,
 });

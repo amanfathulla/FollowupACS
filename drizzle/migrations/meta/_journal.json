@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1795789021045,
+      "tag": "0000_followup_image_variations_spintax",
+      "breakpoints": true
+    }
+  ]
+}
