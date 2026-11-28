@@ -5,3 +5,5 @@
 - [x] Add up to five image alternatives and random per-recipient selection to daily messages.
 - [x] Add per-step spintax, preview variation, and shared automated/manual sending support.
 - [x] Complete signed-in desktop/mobile review, test five-image upload and caption previews, and remove temporary test uploads.
+- [ ] Diagnose slow navigation and Live Chat with visitor metrics, database health and signed-in timings.
+- [ ] Reduce confirmed unnecessary loading work and verify navigation and real conversation reads.

@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { toast } from "sonner";
-import * as XLSX from "xlsx";
 import {
   Users,
   UserPlus,
@@ -129,7 +128,8 @@ type ImportRow = {
 
 const IMPORT_TEMPLATE_HEADERS = ["Nama", "Telefon", "Produk", "Model Kereta", "Nota"];
 
-function downloadImportTemplate() {
+async function downloadImportTemplate() {
+  const XLSX = await import("xlsx");
   const rows = [
     IMPORT_TEMPLATE_HEADERS,
     ["Ahmad Zaki", "0123456789", "Servis Kereta", "Perodua Myvi 2019", "Minat pakej penuh"],
@@ -363,6 +363,7 @@ function LeadsPage() {
     setImportPreview(null);
     try {
       const buf = await file.arrayBuffer();
+      const XLSX = await import("xlsx");
       const wb = XLSX.read(buf, { type: "array", raw: true });
       const sheet = wb.Sheets[wb.SheetNames[0]];
       if (!sheet) {

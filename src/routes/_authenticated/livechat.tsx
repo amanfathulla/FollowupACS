@@ -49,6 +49,8 @@ function LiveChatPage() {
 
   const [senderFilter, setSenderFilter] = useState<string>("all");
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
+  const selectedLeadRef = useRef<string | null>(null);
+  useEffect(() => { selectedLeadRef.current = selectedLeadId; }, [selectedLeadId]);
   const [draft, setDraft] = useState("");
 
   const senders = useQuery({ queryKey: ["senders-lite"], queryFn: () => sendersFn() });
@@ -69,6 +71,7 @@ function LiveChatPage() {
       return msgFn({ data: { leadId: selectedLeadId } });
     },
     enabled: !!selectedLeadId,
+    staleTime: 8_000,
     refetchInterval: 8000,
   });
 
@@ -81,8 +84,9 @@ function LiveChatPage() {
         { event: "INSERT", schema: "public", table: "lead_messages" },
         (payload: any) => {
           qc.invalidateQueries({ queryKey: ["conversations"] });
-          if (payload.new?.lead_id === selectedLeadId) {
-            qc.invalidateQueries({ queryKey: ["lead-messages", selectedLeadId] });
+          const currentLeadId = selectedLeadRef.current;
+          if (payload.new?.lead_id === currentLeadId) {
+            qc.invalidateQueries({ queryKey: ["lead-messages", currentLeadId] });
           }
         },
       )
@@ -90,7 +94,7 @@ function LiveChatPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [qc, selectedLeadId]);
+  }, [qc]);
 
   const bottomRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -154,7 +158,7 @@ function LiveChatPage() {
               return (
                 <button
                   key={c.lead_id}
-                  onClick={() => setSelectedLeadId(c.lead_id)}
+                    onClick={() => setSelectedLeadId(c.lead_id)}
                   className={`w-full text-left p-3 flex gap-3 transition-colors ${
                     active ? "bg-muted" : "hover:bg-muted/50"
                   }`}

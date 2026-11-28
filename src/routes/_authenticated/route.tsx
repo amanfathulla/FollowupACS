@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   createFileRoute,
   Link,
@@ -70,6 +71,7 @@ function SidebarBody({
             <Link
               key={item.to}
               to={item.to}
+              preload={false}
               onClick={onNavigate}
               className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
                 active
@@ -101,6 +103,7 @@ function SidebarBody({
 }
 
 function AppShell() {
+  const queryClient = useQueryClient();
   const { user } = Route.useRouteContext();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -111,8 +114,10 @@ function AppShell() {
   }, [pathname]);
 
   async function signOut() {
+    await queryClient.cancelQueries();
+    queryClient.clear();
     await supabase.auth.signOut();
-    navigate({ to: "/auth" });
+    navigate({ to: "/auth", replace: true });
   }
 
   const activeLabel = NAV.find((n) => n.to === pathname)?.label ?? "WhatsApp Followup Automation";

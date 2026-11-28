@@ -824,8 +824,8 @@ export const listConversations = createServerFn({ method: "POST" })
           unread_count: 0,
         });
       }
-      const g = grouped.get(r.lead_id)!;
-      if (r.direction === "inbound" && !r.is_read) g.unread_count += 1;
+      const g = grouped.get(r.lead_id);
+      if (g && r.direction === "inbound" && !r.is_read) g.unread_count += 1;
     }
     return Array.from(grouped.values());
   });
@@ -839,19 +839,22 @@ export const listLeadMessages = createServerFn({ method: "POST" })
     const { data: rows, error } = await context.supabase
       .from("lead_messages")
       .select(
-        "id, lead_id, sender_id, direction, content, message_type, media_url, created_at, provider_message_id",
+        "id, lead_id, sender_id, direction, content, message_type, media_url, created_at, provider_message_id, is_read",
       )
       .eq("lead_id", data.leadId)
       .order("created_at", { ascending: true })
       .limit(500);
     if (error) throw new Error(error.message);
-    // Mark inbound as read
-    await context.supabase
-      .from("lead_messages")
-      .update({ is_read: true })
-      .eq("lead_id", data.leadId)
-      .eq("direction", "inbound")
-      .eq("is_read", false);
+    // Avoid a second database round-trip for already-read/outbound-only threads.
+    if (rows?.some((row) => row.direction === "inbound" && !row.is_read)) {
+      const { error: readError } = await context.supabase
+        .from("lead_messages")
+        .update({ is_read: true })
+        .eq("lead_id", data.leadId)
+        .eq("direction", "inbound")
+        .eq("is_read", false);
+      if (readError) throw new Error(readError.message);
+    }
     return rows ?? [];
   });
 

@@ -13,3 +13,6 @@
 - Use shared lead-category helpers for status transitions and legacy list normalization; conversion updates the existing row rather than creating another lead.
 - Remove preview rows only from local import state so duplicate warnings and submitted rows stay aligned without deleting stored leads.
 - Keep image-pool selection and spintax rendering in a browser-safe shared helper used by preview, cron, and manual sending so actual captions and recorded media match the selected variation.
+- Reuse query results briefly across navigation while retaining polling and mutation invalidation; clear protected cache on sign-out to prevent cross-account reuse.
+- Load the Excel parser only when importing or downloading a template so ordinary dashboard visits do not pay its loading cost.
+- Keep the Live Chat subscription stable across thread selection and skip read-status writes when the fetched thread has no unread inbound messages to avoid redundant network work.
