@@ -315,7 +315,7 @@ function MessagesPage() {
         )}
       </header>
 
-      <section className="grid gap-3 sm:grid-cols-2" aria-label="Kategori mesej">
+      <section className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-2" aria-label="Kategori mesej">
         {([
           { key: "prospect" as const, title: "Mesej Prospek", sub: "Lead belum beli", icon: MessageCircle, tone: "bg-prospect text-prospect-foreground", activeTone: "border-prospect bg-prospect text-prospect-foreground" },
           { key: "customer" as const, title: "Mesej Pelanggan", sub: "Susulan selepas jualan", icon: MessagesSquare, tone: "bg-converted text-converted-foreground", activeTone: "border-converted bg-converted text-converted-foreground" },
@@ -324,7 +324,7 @@ function MessagesPage() {
           const seq = (sequences.data ?? []).find((s: any) => (s.category ?? "prospect") === item.key);
           const Icon = item.icon;
           return (
-            <Button key={item.key} type="button" variant="outline" disabled={uploading} onClick={() => { setCategory(item.key); setSelectedStepId(null); }} className={`h-auto justify-start gap-3 border-2 px-4 py-4 text-left ${active ? `${item.activeTone} shadow-sm` : "bg-card"}`}>
+            <Button key={item.key} type="button" variant="outline" disabled={uploading} onClick={() => { setCategory(item.key); setSelectedStepId(null); }} className={`h-auto min-w-0 w-full justify-start gap-3 border-2 px-4 py-4 text-left ${active ? `${item.activeTone} shadow-sm` : "bg-card"}`}>
               <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${item.tone}`}><Icon className="h-5 w-5" /></span>
               <span className="min-w-0 flex-1"><span className="block font-semibold">{item.title}</span><span className={`block truncate text-xs font-normal ${active ? "opacity-75" : "text-muted-foreground"}`}>{item.sub} · {seq?.name ?? "Sequence belum ada"}</span></span>
               {active && <Badge className="border-current bg-background/15 text-current">Aktif</Badge>}
@@ -348,7 +348,7 @@ function MessagesPage() {
       </section>
 
       {selectedStep ? (
-        <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
           <Card className="min-w-0 overflow-hidden rounded-xl p-0 shadow-sm">
             <div className={`flex items-center gap-3 border-b px-5 py-4 ${category === "prospect" ? "bg-prospect text-prospect-foreground" : "bg-converted text-converted-foreground"}`}>
               <span className="grid h-10 w-10 place-items-center rounded-lg bg-background/15"><MessageCircle className="h-5 w-5" /></span>
@@ -374,7 +374,7 @@ function MessagesPage() {
 
               <div><div className="mb-2 flex items-end justify-between gap-3"><Label htmlFor="message-copy">{messageMode === "media" ? "Caption mesej" : "Ayat mesej"}</Label><span className="text-xs text-muted-foreground">{draftMessage.length} aksara</span></div><Textarea id="message-copy" ref={messageRef} rows={12} value={draftMessage} onChange={(e) => setDraftMessage(e.target.value)} disabled={!isAdmin} className="resize-y bg-muted/20 text-base leading-relaxed" /></div>
 
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4"><Label htmlFor="spintax-enabled" className="flex items-center gap-2"><Shuffle className="h-4 w-4 text-crimson" />Spintax</Label><Switch id="spintax-enabled" checked={spintaxEnabled} onCheckedChange={setSpintaxEnabled} disabled={!isAdmin} />{spintaxEnabled && <Button type="button" variant="outline" size="sm" onClick={() => insertPlaceholder("{Hi|Hello|Assalamualaikum}")} disabled={!isAdmin}><Plus className="mr-1 h-3 w-3" />{"{Hi|Hello|Assalamualaikum}"}</Button>}</div>
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4"><Label htmlFor="spintax-enabled" className="flex items-center gap-2"><Shuffle className="h-4 w-4 text-crimson" />Spintax</Label><Switch id="spintax-enabled" checked={spintaxEnabled} onCheckedChange={setSpintaxEnabled} disabled={!isAdmin} />{spintaxEnabled && <Button type="button" variant="outline" size="sm" className="h-auto max-w-full whitespace-normal break-all py-2" onClick={() => insertPlaceholder("{Hi|Hello|Assalamualaikum}")} disabled={!isAdmin}><Plus className="mr-1 h-3 w-3 shrink-0" />{"{Hi|Hello|Assalamualaikum}"}</Button>}</div>
 
               <div className="flex flex-col-reverse gap-2 border-t pt-5 sm:flex-row sm:justify-between"><Button variant="outline" onClick={() => { if (confirm("Padam langkah ini?")) deleteStepMutation.mutate(selectedStep.id); }} disabled={!isAdmin}><Trash2 className="mr-2 h-4 w-4" />Padam</Button><Button onClick={() => updateStepMutation.mutate()} disabled={!isAdmin || uploading || updateStepMutation.isPending} className="bg-whatsapp text-whatsapp-foreground hover:bg-whatsapp/90"><Save className="mr-2 h-4 w-4" />Simpan & kemas kini</Button></div>
             </div>
